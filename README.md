@@ -1,2 +1,1 @@
-# Conversion and combination of different
-representations of regular languages
+# Conversion and combination of different representations of regular languages
