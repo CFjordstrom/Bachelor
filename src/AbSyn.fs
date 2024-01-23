@@ -87,11 +87,13 @@ type Regex =
 *)
 
 (*
-Regex  -> Concat
+Start -> / Regex /
+
+Regex  -> Concats
         | Regex '|' Regex
 
 Concat -> Rep
-        | Concat Concat
+        | Rep Concat
 
 Rep    -> Atom
         | Atom *
@@ -100,17 +102,26 @@ Atom   -> any char
         | ( Regex )
 *)
 
+let fromCString (s : string) : string =
+    let rec unescape l: char list =
+        match l with
+            | []                -> []
+            | '\\' :: 'n' :: l' -> '\n' :: unescape l'
+            | '\\' :: 't' :: l' -> '\t' :: unescape l'
+            | '\\' :: c   :: l' -> c    :: unescape l'
+            | c           :: l' -> c    :: unescape l'
+    Seq.toList s |> unescape |> System.String.Concat
+
 type Atom = 
       CharLit of char
     | GroupRegex of Regex
 
-type Rep =
+and Rep =
       CharAtom of Atom
     | ZeroOrMore of Atom
 
-type Concat =
-    Chars of Rep list
+and Concat = Rep list
 
-type Regex =
-      Concatenation of Concat
+and Regex =
+      Concat of Concat
     | Union of Regex * Regex

@@ -18,24 +18,39 @@ let parse_error_rich =
 
 %}
 
-%token <char * Position> CHARLIT
-%token <Position> PIPE STAR
-%token <Position> LPAR RPAR
+%token <char> CHARLIT
+%token PIPE STAR
+%token LPAR RPAR
+%token SLASH EOF
 
 %left PIPE
 %left STAR
 
-%start Regex
-%type <Absyn.Regex> Regex
+%start Start
+%type <AbSyn.Regex> Start
+%type <AbSyn.Regex> Regex
 %type <AbSyn.Concat> Concat
-%type <Absyn.Rep> Repetition
-%type <Absyn.Atom> Atom
+%type <AbSyn.Rep> Rep
+%type <AbSyn.Atom> Atom
 
 %%
+Start   : SLASH Regex SLASH EOF { $2 }
+;
 
-Regex   : Seq { $1 }
-        | Regex Regex { $1, $2}
+Regex   : Concat { Concat($1) }
+        | Regex PIPE Regex { Union($1, $3) }
+;
 
-Seq     : Quant { $1 }
-        | Seq Seq { $1 $2 }
+Concat  : Rep { $1 :: [] }
+        | Rep Concat { $1 :: $2 }
+;
 
+Rep     : Atom { CharAtom($1) }
+        | Atom STAR { ZeroOrMore($1) }
+;
+
+Atom    : CHARLIT { CharLit($1) }
+        | LPAR Regex RPAR { GroupRegex($2) }
+;
+
+%%

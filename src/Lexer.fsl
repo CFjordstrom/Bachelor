@@ -1,0 +1,40 @@
+{
+module Lexer
+
+open System;;
+open FSharp.Text.Lexing;;
+open System.Text;;
+
+let mutable currentLine = 1
+let mutable lineStartPos = [0]
+
+let rec getLineCol pos line = function
+    |  (p1::ps) ->
+        if pos>=p1
+        then (line, pos-p1)
+        else getLineCol pos (line-1) ps
+    |  [] -> (0,0) (* should not happen *)
+
+let getPos (lexbuf : LexBuffer<'char>) =
+      getLineCol lexbuf.StartPos.pos_cnum
+                 (currentLine)
+                 (lineStartPos)
+
+exception LexicalError of string * (int * int) (* (message, (line, column)) *)
+
+let lexerError lexbuf s =
+     raise (LexicalError (s, getPos lexbuf))
+}
+
+rule Token = parse
+      '|'                   { Parser.PIPE }
+    | '*'                   { Parser.STAR }
+    | '('                   { Parser.LPAR }
+    | ')'                   { Parser.RPAR }
+    | '/'                   { Parser.SLASH }
+    | ['a'-'z' 'A'-'Z' '0'-'9']
+                          { let str0 = Encoding.UTF8.GetString(lexbuf.Lexeme)
+                            Parser.CHARLIT (str0.[0])
+                          }
+    | eof                   { Parser.EOF}
+    | _                     { lexerError lexbuf "Illegal symbol in input" }
