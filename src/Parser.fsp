@@ -1,0 +1,41 @@
+%{
+
+let p0 = (0,0)
+
+open FSharp.Text.Parsing
+open AbSyn
+
+(* parse-error function *)
+let mutable ErrorContextDescriptor : string = ""
+
+let parse_error_rich =
+  Some (fun (ctxt: ParseErrorContext<_>) ->
+    ErrorContextDescriptor <-
+      match ctxt.CurrentToken with
+      | None -> "At beginning of input\n"
+      | Some token -> sprintf "at token %A\n" token
+  )
+
+%}
+
+%token <char * Position> CHARLIT
+%token <Position> PIPE STAR
+%token <Position> LPAR RPAR
+
+%left PIPE
+%left STAR
+
+%start Regex
+%type <Absyn.Regex> Regex
+%type <AbSyn.Concat> Concat
+%type <Absyn.Rep> Repetition
+%type <Absyn.Atom> Atom
+
+%%
+
+Regex   : Seq { $1 }
+        | Regex Regex { $1, $2}
+
+Seq     : Quant { $1 }
+        | Seq Seq { $1 $2 }
+
