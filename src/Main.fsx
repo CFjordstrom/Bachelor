@@ -3,6 +3,7 @@ open FSharp.Text.Lexing
 open System.IO
 
 open AbSyn
+open RegexConversion
 
 let parse (s : string) : Regex =
     Parser.Start Lexer.Token
@@ -52,5 +53,5 @@ let main (args : string[]) : int =
         let regex = parseRegex filename
         0*)
     let regex = parseRegex args.[0]
-    printfn "%A" regex
+    printfn "%s" (RegexToString regex)
     0
