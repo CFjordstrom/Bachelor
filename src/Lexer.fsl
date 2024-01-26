@@ -24,17 +24,32 @@ exception LexicalError of string * (int * int) (* (message, (line, column)) *)
 
 let lexerError lexbuf s =
      raise (LexicalError (s, getPos lexbuf))
+
+(*
+| '{' ['1' - '9']['0' - '9']* '}'
+                            {
+                                let str = Encoding.UTF8.GetString(lexbuf.Lexeme)
+                                PARSER.NUMLIT
+                            }
+*)
 }
 
 rule Token = parse
       '|'                   { Parser.PIPE }
     | '*'                   { Parser.STAR }
+    | '+'                   { Parser.PLUS }
+    | '?'                   { Parser.QMARK }
     | '('                   { Parser.LPAR }
     | ')'                   { Parser.RPAR }
     | '/'                   { Parser.SLASH }
+    | '-'                   { Parser.DASH }
+    | '.'                   { Parser.DOT }
+    | '['                   { Parser.LBRACKET }
+    | ']'                   { Parser.RBRACKET }
     | ['a'-'z' 'A'-'Z' '0'-'9']
-                          { let str0 = Encoding.UTF8.GetString(lexbuf.Lexeme)
-                            Parser.CHARLIT (str0.[0])
-                          }
+                            { 
+                                let str = Encoding.UTF8.GetString(lexbuf.Lexeme)
+                                Parser.CHARLIT (str.[0])
+                            }
     | eof                   { Parser.EOF}
     | _                     { lexerError lexbuf "Illegal symbol in input" }

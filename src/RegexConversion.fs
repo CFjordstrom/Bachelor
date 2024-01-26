@@ -16,6 +16,8 @@ and RepToString (rep : Rep) : string =
     match rep with
     | CharAtom (atom) -> AtomToString atom
     | ZeroOrMore (atom) -> AtomToString atom + "*"
+    | OneOrMore (atom) -> AtomToString atom + "+"
+    | ZeroOrOne (atom) -> AtomToString atom + "?"
 
 and AtomToString (atom : Atom) : string =
     match atom with

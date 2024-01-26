@@ -19,6 +19,7 @@
     <Compile Include="AbSyn.fs" />
     <Compile Include="Parser.fs" />
     <Compile Include="Lexer.fs" />
+    <Compile Include="RegexConversion.fs" />
     
     <Compile Include="Main.fsx" />
   </ItemGroup>
