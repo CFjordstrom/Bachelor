@@ -16,42 +16,11 @@ let parseRegex (filename : string) : Regex =
 
     if txt <> "" then
         parse txt
-    else failwith "idk"
-
-    (*let txt = try  // read text from file given as parameter with added extension
-                let inStream = File.OpenText (filename + ".fo")
-                let txt = inStream.ReadToEnd()
-                inStream.Close()
-                txt
-            with  // or return empty string
-                
-    if txt <> "" then // valid file content
-        let regex =
-            try
-                parse txt
-            with
-            | Lexer.LexicalError (info,(line,col)) ->
-                printfn "%s at line %d, position %d\n" info line col
-                System.Environment.Exit 1
-                []
-            | ex ->
-                if ex.Message = "parse error"
-                then printPos Parser.ErrorContextDescriptor
-                else printfn "%s" ex.Message
-                System.Environment.Exit 1
-                []
-        regex
-    else failwith "Invalid file name or empty file"*)
+    else failwith "invalid input"
 
 [<EntryPoint>]
 let main (args : string[]) : int =
-    (*if args.Length <> 1 then
-        printfn "dotnet run ../tests/filename"
-        1
-    else
-        let filename = args.[0]
-        let regex = parseRegex filename
-        0*)
     let regex = parseRegex args.[0]
-    printfn "%s" (RegexToString regex)
+    printfn "Syntax tree:\n%A\n" regex
+    printfn "Original regex:\n%s" (RegexToString regex)
     0

@@ -19,11 +19,11 @@ let parse_error_rich =
 %}
 
 %token <char> CHARLIT
-%token <int> NUMLIT
+%token <int> NUMREPS
 %token SLASH DASH DOT
 %token PIPE
 %token LBRACKET RBRACKET
-%token STAR PLUS QMARK LCURLY RCURLY
+%token STAR PLUS QMARK
 %token LPAR RPAR
 %token EOF
 
@@ -56,6 +56,7 @@ Rep     : Atom { CharAtom($1) }
         | Atom STAR { ZeroOrMore($1) }
         | Atom PLUS { OneOrMore($1) }
         | Atom QMARK { ZeroOrOne($1) }
+        | Atom NUMREPS { NumReps($1, $2) }
 ;
 
 Atom    : CHARLIT { CharLit($1) }
@@ -71,6 +72,8 @@ ClassContent    : ClassRange { $1 :: [] }
                 | ClassRange ClassContent { $1 :: $2 }
 ;
 
-ClassRange      : CHARLIT { CharLit($1) }
+ClassRange      : CHARLIT { RangeChar($1) }
                 | CHARLIT DASH CHARLIT { Range($1, $3) }
+;
+
 %%

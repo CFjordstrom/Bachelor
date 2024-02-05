@@ -2,6 +2,21 @@ module RegexConversion
 
 open AbSyn
 
+let ClassRangeToString (range : ClassRange) : string =
+    match range with
+    | RangeChar (c) -> string c
+    | Range (c1, c2) -> string c1 + "-" + string c2
+
+let rec ClassContentToString (content : ClassRange list) : string =
+    match content with
+    | [] -> ""
+    | content :: contents -> ClassRangeToString content + ClassContentToString contents
+
+let ClassToString (classVal : Class) : string =
+    match classVal with
+    | Dot -> "."
+    | ClassContent (content) -> "[" + ClassContentToString content + "]"
+
 let rec RegexToString (regex : Regex) : string =
     match regex with
     | Concat (lst)  -> ConcatToString lst
@@ -18,8 +33,10 @@ and RepToString (rep : Rep) : string =
     | ZeroOrMore (atom) -> AtomToString atom + "*"
     | OneOrMore (atom) -> AtomToString atom + "+"
     | ZeroOrOne (atom) -> AtomToString atom + "?"
+    | NumReps (atom, numreps) -> AtomToString atom + "{" + string numreps + "}"
 
 and AtomToString (atom : Atom) : string =
     match atom with
     | CharLit c -> string c
     | GroupRegex (regex) -> "(" + RegexToString regex + ")"
+    | Class (classVal) -> ClassToString classVal

@@ -30,14 +30,14 @@ ClassRange  -> any char
 *)
 
 type ClassRange =
-    CharLit of char
+    RangeChar of char
   | Range of char * char
 
 type ClassContent = ClassRange list
 
 type Class =
     Dot
-  | Content of ClassContent
+  | ClassContent of ClassContent
 
 type Atom = 
     CharLit of char
@@ -49,7 +49,7 @@ and Rep =
   | ZeroOrMore of Atom
   | OneOrMore of Atom
   | ZeroOrOne of Atom
-  (* | NumReps of Atom * int *)
+  | NumReps of Atom * int 
 
 and Concat = Rep list
 
