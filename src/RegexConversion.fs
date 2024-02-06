@@ -16,6 +16,12 @@ let ClassToString (classVal : Class) : string =
     match classVal with
     | Dot -> "."
     | ClassContent (content) -> "[" + ClassContentToString content + "]"
+    | Complement (content) -> "[^" + ClassContentToString content + "]" 
+
+let CharToString (c : Char) : string =
+    match c with
+    | CharLit (c) -> string c
+    | EscChar (c) -> "\\" + string c
 
 let rec RegexToString (regex : Regex) : string =
     match regex with
@@ -37,6 +43,6 @@ and RepToString (rep : Rep) : string =
 
 and AtomToString (atom : Atom) : string =
     match atom with
-    | CharLit c -> string c
+    | Char (c) -> CharToString c
     | GroupRegex (regex) -> "(" + RegexToString regex + ")"
     | Class (classVal) -> ClassToString classVal

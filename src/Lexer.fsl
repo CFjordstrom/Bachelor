@@ -39,15 +39,21 @@ rule Token = parse
     | '.'                   { Parser.DOT }
     | '['                   { Parser.LBRACKET }
     | ']'                   { Parser.RBRACKET }
+    | '^'                   { Parser.CARET }
     | '{' ['1' - '9']['0' - '9']* '}'
                             {
                                 let str = Encoding.UTF8.GetString(lexbuf.Lexeme)
                                 Parser.NUMREPS (int str.[1..(str.Length - 2)])
                             }
-    | ['a'-'z' 'A'-'Z' '0'-'9']
+    | [^ '/' '|' '*' '+' '?' '{' '}' '(' ')' '[' ']' '-' '.' '\\']
                             { 
                                 let str = Encoding.UTF8.GetString(lexbuf.Lexeme)
                                 Parser.CHARLIT (str.[0])
                             }
-    | eof                   { Parser.EOF}
+    | '\\' ['/' '|' '*' '+' '?' '{' '}' '(' ')' '[' ']' '-' '.' '\\']
+                            { 
+                                let str = Encoding.UTF8.GetString(lexbuf.Lexeme)
+                                Parser.ESCCHAR (str.[1])
+                            }
+    | eof                   { Parser.EOF }
     | _                     { lexerError lexbuf "Illegal symbol in input" }

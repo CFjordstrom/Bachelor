@@ -15,12 +15,16 @@ Rep    -> Atom
         | Atom ?
         | Atom { num }
 
-Atom   -> any char
+Atom   -> Char
         | ( Regex )
         | Class
 
+Char   -> char not in {/|*+?{}()\[]-.}
+        | \ char in {/|*+?{}()\[]-.}
+
 Class  -> .
         | [ ClassContent ]
+        | [ ^ ClassContent ]
 
 ClassContent -> ClassRange
               | ClassRange ClassContent
@@ -38,9 +42,14 @@ type ClassContent = ClassRange list
 type Class =
     Dot
   | ClassContent of ClassContent
+  | Complement of ClassContent
+
+type Char = 
+    CharLit of char
+  | EscChar of char
 
 type Atom = 
-    CharLit of char
+    Char of Char
   | GroupRegex of Regex
   | Class of Class
 
