@@ -6,7 +6,7 @@ Start -> / Regex /
 Regex  -> Concat
         | Regex '|' Regex
 
-Concat -> Rep
+Concat -> epsilon
         | Rep Concat
 
 Rep    -> Atom
@@ -26,42 +26,70 @@ Class  -> .
         | [ ClassContent ]
         | [ ^ ClassContent ]
 
-ClassContent -> ClassRange
+ClassContent -> epsilon
               | ClassRange ClassContent
 
 ClassRange  -> any char
             | any char - any char
 *)
 
-type ClassRange =
-    RangeChar of char
-  | Range of char * char
+type ClassRange = char * char
 
 type ClassContent = ClassRange list
 
 type Class =
-    Dot
-  | ClassContent of ClassContent
+    ClassContent of ClassContent
   | Complement of ClassContent
 
-type Char = 
-    CharLit of char
-  | EscChar of char
+type Char = char
+  //  CharLit of char
+  //| EscChar of char
 
-type Atom = 
-    Char of Char
-  | GroupRegex of Regex
-  | Class of Class
+//type Atom = 
+//    Char of Char
+  //| GroupRegex of Regex
+//  | Class of Class
 
-and Rep =
-    CharAtom of Atom
-  | ZeroOrMore of Atom
-  | OneOrMore of Atom
-  | ZeroOrOne of Atom
-  | NumReps of Atom * int 
+//type Rep =
+    //CharAtom of Atom
+  //| ZeroOrMore of Atom
+  //| OneOrMore of Atom
+  //| ZeroOrOne of Atom
+  //| NumReps of Atom * int 
 
-and Concat = Rep list
+type Concat = Regex list
 
 and Regex =
-    Concat of Concat
+    Epsilon
   | Union of Regex * Regex
+  | Concat of Concat
+  | Class of Class
+  | Char of Char
+  | ZeroOrMore of Regex
+
+(*
+// id, accepting
+type State = 
+    Node of int * Transition list * bool
+  | End of int * bool
+
+// symbol(none for epsilon), dest
+and Transition = char option * State
+
+// states(first is starting)
+type NFA = State list
+*)
+
+type State = int
+
+// origin, symbol(None for epsilon), destination
+type Transition = State * char option * State
+
+// states, transitions, start, accepting states, alphabet
+type NFA = {
+    states: State Set;
+    transitions: Transition Set;
+    start: State;
+    accepting: State Set;
+    alphabet: char Set;
+}

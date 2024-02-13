@@ -19,7 +19,8 @@
     <Compile Include="AbSyn.fs" />
     <Compile Include="Parser.fs" />
     <Compile Include="Lexer.fs" />
-    <Compile Include="RegexConversion.fs" />
+    <Compile Include="PrettyPrinter.fs" />
+    <Compile Include="RegexToNFA.fs" />
     
     <Compile Include="Main.fsx" />
   </ItemGroup>

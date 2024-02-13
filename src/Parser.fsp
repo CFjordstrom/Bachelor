@@ -18,8 +18,8 @@ let parse_error_rich =
 
 %}
 
-%token <char> CHARLIT ESCCHAR
-%token <int> NUMREPS
+%token <char> CHARLIT
+//%token <int> NUMREPS
 %token SLASH DASH DOT
 %token PIPE
 %token LBRACKET RBRACKET CARET
@@ -34,9 +34,9 @@ let parse_error_rich =
 %type <AbSyn.Regex> Start
 %type <AbSyn.Regex> Regex
 %type <AbSyn.Concat> Concat
-%type <AbSyn.Rep> Rep
-%type <AbSyn.Atom> Atom
-%type <AbSyn.Char> Char
+%type <AbSyn.Regex> Rep
+%type <AbSyn.Regex> Atom
+%type <AbSyn.Regex> Char
 %type <AbSyn.Class> Class
 %type <AbSyn.ClassContent> ClassContent
 %type <AbSyn.ClassRange> ClassRange
@@ -49,37 +49,36 @@ Regex   : Concat { Concat($1) }
         | Regex PIPE Regex { Union($1, $3) }
 ;
 
-Concat  : Rep { $1 :: [] }
+Concat  : { [] }
         | Rep Concat { $1 :: $2 }
 ;
 
-Rep     : Atom { CharAtom($1) }
+Rep     : Atom { $1 }
         | Atom STAR { ZeroOrMore($1) }
-        | Atom PLUS { OneOrMore($1) }
-        | Atom QMARK { ZeroOrOne($1) }
-        | Atom NUMREPS { NumReps($1, $2) }
+        | Atom PLUS { Concat([$1; ZeroOrMore($1)]) }
+        | Atom QMARK { Union($1, Epsilon) }
+        //| Atom NUMREPS { NumReps($1, $2) }
 ;
 
-Atom    : Char { Char($1) }
-        | LPAR Regex RPAR { GroupRegex($2) }
+Atom    : Char { $1 }
+        | LPAR Regex RPAR { $2 }
         | Class { Class($1) }
 ;
 
-Char    : CHARLIT { CharLit($1) }
-        | ESCCHAR { EscChar($1) }
+Char    : CHARLIT { Char($1) }
 ;
 
-Class   : DOT { Dot }
+Class   : DOT { Complement([]) }
         | LBRACKET ClassContent RBRACKET { ClassContent($2) }
         | LBRACKET CARET ClassContent RBRACKET { Complement($3) }
 ;
 
-ClassContent    : ClassRange { $1 :: [] }
+ClassContent    :  { [] }
                 | ClassRange ClassContent { $1 :: $2 }
 ;
 
-ClassRange      : CHARLIT { RangeChar($1) }
-                | CHARLIT DASH CHARLIT { Range($1, $3) }
+ClassRange      : CHARLIT { ($1, $1) }
+                | CHARLIT DASH CHARLIT { ($1, $3) }
 ;
 
 %%
