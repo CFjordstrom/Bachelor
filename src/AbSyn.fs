@@ -13,7 +13,6 @@ Rep    -> Atom
         | Atom *
         | Atom +
         | Atom ?
-        | Atom { num }
 
 Atom   -> Char
         | ( Regex )
@@ -33,63 +32,29 @@ ClassRange  -> any char
             | any char - any char
 *)
 
-type ClassRange = char * char
-
-type ClassContent = ClassRange list
+type ClassContent = Set<char>
 
 type Class =
     ClassContent of ClassContent
   | Complement of ClassContent
 
 type Char = char
-  //  CharLit of char
-  //| EscChar of char
-
-//type Atom = 
-//    Char of Char
-  //| GroupRegex of Regex
-//  | Class of Class
-
-//type Rep =
-    //CharAtom of Atom
-  //| ZeroOrMore of Atom
-  //| OneOrMore of Atom
-  //| ZeroOrOne of Atom
-  //| NumReps of Atom * int 
 
 type Concat = Regex list
 
 and Regex =
-    Epsilon
-  | Union of Regex * Regex
+    Union of Regex * Regex
   | Concat of Concat
   | Class of Class
   | Char of Char
   | ZeroOrMore of Regex
 
-(*
-// id, accepting
-type State = 
-    Node of int * Transition list * bool
-  | End of int * bool
-
-// symbol(none for epsilon), dest
-and Transition = char option * State
-
-// states(first is starting)
-type NFA = State list
-*)
-
 type State = int
-
-// origin, symbol(None for epsilon), destination
 type Transition = State * char option * State
+type NFA = State * Map<State, (Set<Transition> * bool)> * Set<char>
 
-// states, transitions, start, accepting states, alphabet
-type NFA = {
-    states: State Set;
-    transitions: Transition Set;
-    start: State;
-    accepting: State Set;
-    alphabet: char Set;
-}
+type DFATransition = State * char * State
+type DFA = State * Map<State, (Set<DFATransition> * bool)> * Set<char>
+
+(* dfa state maps to a set of nfa states, a bool indicating if the dfa state is marked or not, and the transitions that belong to that dfa state *)
+type WorkList = Map<State, (Set<State> * bool)>

@@ -21,6 +21,7 @@
     <Compile Include="Lexer.fs" />
     <Compile Include="PrettyPrinter.fs" />
     <Compile Include="RegexToNFA.fs" />
+    <Compile Include="NFAToDFA.fs" />
     
     <Compile Include="Main.fsx" />
   </ItemGroup>

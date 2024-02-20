@@ -2,76 +2,23 @@ module PrettyPrinter
 
 open AbSyn
 
-(*let ClassRangeToString (range : ClassRange) : string =
-    match range with
-    | RangeChar (c) -> string c
-    | Range (c1, c2) -> string c1 + "-" + string c2
-
-let rec ClassContentToString (content : ClassRange list) : string =
-    match content with
-    | [] -> ""
-    | content :: contents -> ClassRangeToString content + ClassContentToString contents
-
-let ClassToString (classVal : Class) : string =
-    match classVal with
-    | Dot -> "."
-    | ClassContent (content) -> "[" + ClassContentToString content + "]"
-    | Complement (content) -> "[^" + ClassContentToString content + "]" 
-
-let CharToString (c : Char) : string =
-    match c with
-    | CharLit (c) -> string c
-    | EscChar (c) -> "\\" + string c
-
-let rec RegexToString (regex : Regex) : string =
-    match regex with
-    | Concat (lst)  -> ConcatToString lst
-    | Union (regex1, regex2) -> RegexToString regex1 + "|" + RegexToString regex2
-
-and ConcatToString (lst : Rep list) : string =
-    match lst with
-    | [] -> ""
-    | rep :: reps -> RepToString rep + ConcatToString reps
-
-and RepToString (rep : Rep) : string =
-    match rep with
-    | CharAtom (atom) -> AtomToString atom
-    | ZeroOrMore (atom) -> AtomToString atom + "*"
-    | OneOrMore (atom) -> AtomToString atom + "+"
-    | ZeroOrOne (atom) -> AtomToString atom + "?"
-    //| NumReps (atom, numreps) -> AtomToString atom + "{" + string numreps + "}"
-
-and AtomToString (atom : Atom) : string =
-    match atom with
-    | Char (c) -> CharToString c
-    | GroupRegex (regex) -> "(" + RegexToString regex + ")"
-    | Class (classVal) -> ClassToString classVal*)
-
-let ppClassRange (range : char * char) : string =
-    if fst range = snd range then
-        string range
-    else
-        string (fst range) + "-" + string (snd range)
-
-let rec ppClassContent (content : ClassRange list) : string =
-    match content with
-    | [] -> ""
-    | c :: cs -> ppClassRange c + ppClassContent cs
-
-let ppClass (c : Class) : string =
-    match c with
-    | ClassContent content -> "[" + ppClassContent content + "]"
-    | Complement content -> 
-        if List.isEmpty content then 
-            "." 
-        else 
-            "[^" + ppClassContent content + "]"
-
 let ppChar (c : char) : string =
     match c with 
     | c when c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' -> string c
     | '/' | '|' | '*' | '+' | '?' | '{' | '}' | '(' | ')' | '\\' | '[' | ']' | '-' | '.' -> "\\" + string c
     | _ -> string c
+
+let rec ppClassContent (content : Set<char>) : string =
+    Set.fold (fun acc c -> acc + string c) "" content
+
+let ppClass (c : Class) : string =
+    match c with
+    | ClassContent content -> "[" + ppClassContent content + "]"
+    | Complement content -> 
+        if Set.isEmpty content then 
+            "." 
+        else 
+            "[^" + ppClassContent content + "]"
 
 let rec ppConcat (lst : Regex list) : string =
     match lst with
@@ -80,66 +27,50 @@ let rec ppConcat (lst : Regex list) : string =
 
 and ppRegex (regex : Regex) : string =
     match regex with
-    | Epsilon -> ""
     | Union (r1, r2) -> 
         match r2 with
-        | Epsilon -> "(" + ppRegex r1 + ")?"
-        | _ -> ppRegex r1 + "|" + ppRegex r2
+        | Concat([]) -> "(" + ppRegex r1 + ")?"
+        | _ -> "(" + ppRegex r1 + ")" + "|" + "(" + ppRegex r2 + ")"
     | Concat lst -> ppConcat lst
     | Class c -> ppClass c
     | Char c -> ppChar c
     | ZeroOrMore r -> "(" + ppRegex r + ")*"
 
-let acceptingBoolToString a =
-    match a with
-        | true -> ", accepting"
-        | false -> ""
-
-let ppTransitionWithID id1 s id2 a =
-    let accepting = acceptingBoolToString a
-    string id1 + " -> " + s + " " + string id2 + accepting + "\n"
-
-(*
-let rec concat lst =
-    match lst with
-    | [] -> ""
-    | (s :: ss) -> s + concat ss
-
-let ppTransition (originID : int) (t : Transition) : string =
+let transitionToString (t : Transition) =
     match t with
-    | (Some c, s) -> 
-        match s with
-        | Node(id, _, a) -> ppTransitionWithID originID (string c) id a
-        | End(id, a) -> ppTransitionWithID originID (string c) id a
-    | (None, s) -> 
-        match s with
-        | Node(id, _, a) -> ppTransitionWithID originID "epsilon" id a
-        | End(id, a) -> ppTransitionWithID originID "epsilon" id a
+    | (s1, Some c, s2) -> string s1 + " -> " + string c + " " + string s2 + "\n"
+    | (s1, None, s2) -> string s1 + " -> epsilon " + string s2 + "\n"
 
-let ppState (s : State) : string =
-    match s with
-    | Node(id, ts, a) ->
-        match ts with
-        | [] -> ""
-        | ts -> ts |> List.map (ppTransition id) |> concat
-    | End(id, a) -> string id + (acceptingBoolToString a) + "\n"
-
+let transitionsToString (state : State) (ts : Set<Transition> * bool) =
+    let res = Set.fold (fun acc t -> acc + transitionToString t) "" (fst ts)
+    if snd ts = true then
+        res + "State " + string state + " is accepting\n\n"
+    else
+        res
+    
 let rec ppNFA (nfa : NFA) : string =
-    match nfa with
-    | [] -> ""
-    | (s :: ss) -> ppState s + ppNFA ss
-*)
+    let (start, map, alphabet) = nfa
+    ("Starting state: " + string start + "\n"
+    + Map.fold (fun acc key value -> acc + transitionsToString key value) "" map
+    + "\nAlphabet: " + Set.fold (fun acc c -> acc + string c) "" alphabet
+    )
 
-let rec ppNFA (nfa : NFA) : string =
-    Set.fold (fun acc (origin, s, dest) -> 
-        let symbol =
-            match s with
-            | Some c -> string c
-            | None -> "epsilon"
-        let res = acc + string origin + " -> " + symbol + " " + string dest
-        if Set.contains dest nfa.accepting then
-            res + ", accepting\n"
-        else
-            res + "\n"
-    ) "" nfa.transitions
 
+(* need to combine nfa and dfa printing, but no time for now *)
+let dfaTransitionToString (t : DFATransition) =
+    let (s1, c, s2) = t
+    string s1 + " -> " + string c + " " + string s2 + "\n"
+
+let dfaTransitionsToString (state : State) (ts : Set<DFATransition> * bool) =
+    let res = Set.fold (fun acc t -> acc + dfaTransitionToString t) "" (fst ts)
+    if snd ts = true then
+        res + "State " + string state + " is accepting\n\n"
+    else
+        res
+
+let rec ppDFA (dfa : DFA) : string =
+    let (start, map, alphabet) = dfa
+    ("Starting state: " + string start + "\n"
+    + Map.fold (fun acc key value -> acc + dfaTransitionsToString key value) "" map
+    + "Alphabet: " + Set.fold (fun acc c -> acc + string c) "" alphabet
+    )
