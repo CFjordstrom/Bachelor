@@ -38,7 +38,7 @@ type Class =
     ClassContent of ClassContent
   | Complement of ClassContent
 
-type Char = char
+//type Char = char
 
 type Concat = Regex list
 
@@ -46,7 +46,7 @@ and Regex =
     Union of Regex * Regex
   | Concat of Concat
   | Class of Class
-  | Char of Char
+  //| Char of Char
   | ZeroOrMore of Regex
 
 type State = int

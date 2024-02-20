@@ -20,7 +20,7 @@ let rec epsilonClosure (state : State) (nfa : NFA) : Set<State> =
         |> Set.map (fun (_, _, dest) -> dest)
         (* find the epsilon closures of states that can be reached from epsilon transitions *)
         |> Set.map (fun s -> epsilonClosure s nfa)
-        (* combine all the states that can be reach into one set of states *)
+        (* combine all the states that can be reached into one set of states *)
         |> Set.fold (fun acc set -> Set.union acc set) Set.empty
         (* add the state itself *)
         |> Set.add state
@@ -61,14 +61,14 @@ let move (states : Set<State>) (symbol : char) (nfa : NFA) : Set<State> =
     generateDFAState reachable nfa
 
 let rec constructSubset (workList : WorkList) (nfa : NFA) (transitionMap : Map<State, Set<DFATransition>>): (WorkList * Map<State, Set<DFATransition>>) =
-(*
+    (*
     1. while there are unmarked states in the worklist
     2. pick an unmarked element from the worklist and mark it
     3. for each symbol in the alphabet:
         3.1 find the epsilon closure of the states reachable from the current symbol
         3.2 add the epsilon closure to the work list if it is not already there
         3.3 add a transition in the dfa from the current state to the epsilon closure on the current symbol
-*)
+    *)
     (* 1. stop if no more unmarked states *)
     if Map.forall (fun _ (_, mark) -> mark = true) workList then
         (workList, transitionMap)
@@ -85,7 +85,6 @@ let rec constructSubset (workList : WorkList) (nfa : NFA) (transitionMap : Map<S
                 | None -> None) workList
 
         (* 3.1 for each symbol, find the epsilon closures of the states reachable by transitions on each symbol *)
-        (* current implementation of step 3.1 is wrong *)
         let moveAllSymbols : Set<(Set<State> * char)> = 
             Set.fold (fun acc symbol ->
                 let res = move currentNFAStates symbol nfa
@@ -131,7 +130,8 @@ let nfaToDFA (nfa : NFA) : DFA =
     
     (* initialize the worklist to contain the starting state *)
     let workList = Map.ofList [(startingState, (s0, false))]
-    (* use the subset construction algorithm to find  *)
+    (* use the subset construction algorithm to find which DFA states correspond to which NFA states
+       and to find the DFA transitions *)
     let (fullWorkList, dfaTransitionMap) = constructSubset workList nfa Map.empty
 
     (startingState, 

@@ -54,23 +54,32 @@ and regexToNFARec (regex : Regex) (acc : State) : NFA =
     | Class c ->
         match c with
         | ClassContent content ->
-            let startingState = nextID()
-            let endState = nextID()
+            (* if only a single char *)
+            if Set.count content = 1 then
+                let startingState = nextID()
+                let transition = Set.map (fun symbol -> (startingState, Some symbol, acc)) content
+                let map = Map.add startingState (transition, false) Map.empty
+                (startingState,
+                map,
+                content)
+            else 
+                let startingState = nextID()
+                let endState = nextID()
 
-            (* create a set of transitions from the start to end on all the given symbols *)
-            let transitions = Set.map (fun c -> (startingState, Some c, endState)) content
-            (* create a map containing these transitions *)
-            let map = Map.add startingState (transitions, false) Map.empty
-            (* add a transition from the end state to the given end state(maybe just use the given end state as end state?) *)
-            let map2 = Map.add endState ((Set.ofList [(endState, None, acc)]), false) map
-            (startingState, map2, content)
+                (* create a set of transitions from the start to end on all the given symbols *)
+                let transitions = Set.map (fun symbol -> (startingState, Some symbol, endState)) content
+                (* create a map containing these transitions *)
+                let map = Map.add startingState (transitions, false) Map.empty
+                (* add a transition from the end state to the given end state(maybe just use the given end state as end state?) *)
+                let map2 = Map.add endState ((Set.ofList [(endState, None, acc)]), false) map
+                (startingState, map2, content)
         | Complement content -> regexToNFARec (Class(ClassContent(Set.difference ascii content))) acc
 
-    | Char c ->
+    (*| Char c ->
         let startingState = nextID()
         (startingState,
         Map.empty |> Map.add startingState ((Set.ofList [(startingState, Some c, acc)]), false),
-        Set.singleton c)
+        Set.singleton c)*)
 
     | ZeroOrMore r ->
         let state = nextID()

@@ -13,12 +13,16 @@ let rec ppClassContent (content : Set<char>) : string =
 
 let ppClass (c : Class) : string =
     match c with
-    | ClassContent content -> "[" + ppClassContent content + "]"
+    | ClassContent content ->
+        match Set.count content with
+        | 0 -> ""
+        | 1 -> ppClassContent content
+        | _ -> "[" + ppClassContent content + "]"
     | Complement content -> 
-        if Set.isEmpty content then 
-            "." 
-        else 
-            "[^" + ppClassContent content + "]"
+        match Set.count content with
+        | 0 -> "."
+        | 1 -> ppClassContent content
+        | _ -> "[^" + ppClassContent content + "]"
 
 let rec ppConcat (lst : Regex list) : string =
     match lst with
@@ -33,7 +37,7 @@ and ppRegex (regex : Regex) : string =
         | _ -> "(" + ppRegex r1 + ")" + "|" + "(" + ppRegex r2 + ")"
     | Concat lst -> ppConcat lst
     | Class c -> ppClass c
-    | Char c -> ppChar c
+    //| Char c -> ppChar c
     | ZeroOrMore r -> "(" + ppRegex r + ")*"
 
 let transitionToString (t : Transition) =

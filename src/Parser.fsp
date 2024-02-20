@@ -65,7 +65,7 @@ Atom    : Char { $1 }
         | Class { Class($1) }
 ;
 
-Char    : CHARLIT { Char($1) }
+Char    : CHARLIT { Class(ClassContent(Set.singleton $1)) }
 ;
 
 Class   : DOT { Complement(Set.empty) }
