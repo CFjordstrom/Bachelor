@@ -10,7 +10,7 @@ let nextID () =
 (* set of all printable ascii chars *)
 let ascii = Set.ofList <| List.map char [0x20u..0x7Eu]
 
-(* takes two maps and merges them *)
+(* takes two maps and adds the shorter one to the longer one - the function assumes that the maps are disjoint *)
 let mapDisjointUnion map1 map2 =
     let (longer, shorter) =
         if Map.count map1 >= Map.count map2 then (map1, map2)
