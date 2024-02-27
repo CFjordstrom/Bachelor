@@ -22,6 +22,7 @@
     <Compile Include="PrettyPrinter.fs" />
     <Compile Include="RegexToNFA.fs" />
     <Compile Include="NFAToDFA.fs" />
+    <Compile Include="MinimiseDFA.fs" />
     
     <Compile Include="Main.fsx" />
   </ItemGroup>

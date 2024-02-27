@@ -8,89 +8,63 @@ let nextID () =
     (counter - 1)
 
 (* set of all printable ascii chars *)
-let ascii = List.map char [0x21uy..0x7Euy] |> Set.ofList
+let ascii = Set.ofList <| List.map char [0x20u..0x7Eu]
 
 (* takes two maps and merges them *)
-let mergeMaps map1 map2 =
-    Map.fold (fun acc key value -> Map.add key value acc) map1 map2
+let mapDisjointUnion map1 map2 =
+    let (longer, shorter) =
+        if Map.count map1 >= Map.count map2 then (map1, map2)
+        else (map2, map1)
+    Map.fold (fun acc key value -> Map.add key value acc) longer shorter
 
-(* takes a map and sets all its states to be rejecting *)
-let setRejecting (map : Map<State, (Set<Transition> * bool)>) : Map<State, (Set<Transition> * bool)> =
-    map |> Map.map (fun state (ts, _) -> (ts, false))
-
-(* takes a list of regexes and an nfa containing the desired ending state
-   and computes the NFA that results from combining them all sequentially
-   could maybe just have been implemented with foldback instead *)
+(* takes a list of regexes and an nfa containing the desired ending state as its starting 
+state and computes the NFA that results from combining them all sequentially *)
 let rec nfaFromReverseRegexList (rgxlst : Regex list) (acc : NFA): NFA =
     match rgxlst with
     | [] -> acc
     | (r :: rs) ->
         let (accStart, accMap, accAlphabet) = acc
         let (regexStart, regexMap, regexAlphabet) = regexToNFARec r accStart
-        let nfa = (regexStart, mergeMaps accMap regexMap, Set.union accAlphabet regexAlphabet)
+        let nfa = (regexStart, mapDisjointUnion accMap regexMap, Set.union accAlphabet regexAlphabet)
         nfaFromReverseRegexList rs nfa
 
 and regexToNFARec (regex : Regex) (acc : State) : NFA =
     match regex with
     | Union (r1, r2) ->
         let startingState = nextID()
-        let endState = nextID()
-        let (sStart, sMap, sAlphabet) = regexToNFARec r1 endState
-        let (tStart, tMap, tAlphabet) = regexToNFARec r2 endState
+        let (sStart, sMap, sAlphabet) = regexToNFARec r1 acc
+        let (tStart, tMap, tAlphabet) = regexToNFARec r2 acc
 
+        (* combine the two maps into one *)
+        let combinedMap = mapDisjointUnion sMap tMap
         (startingState, 
-        (* merge the mappings of the two NFAs *)
-        mergeMaps sMap tMap
-        (* set all their states to be rejecting *)
-        |> setRejecting
         (* add transitions from the starting state to s and t *)
-        |> Map.add startingState ((Set.ofList [(startingState, None, sStart); (startingState, None, tStart)]), false)
-        (* add a transition from the end state to the given end state(maybe just use the given end state as end state?) *)
-        |> Map.add endState ((Set.ofList [(endState, None, acc)]), false)
-        , Set.union sAlphabet tAlphabet)
+        Map.add startingState ((Set.ofList [(None, sStart); (None, tStart)]), false) combinedMap,
+        Set.union sAlphabet tAlphabet)
 
     | Concat regexList -> nfaFromReverseRegexList (List.rev regexList) (acc, Map.empty, Set.empty)
 
     | Class c ->
         match c with
         | ClassContent content ->
-            (* if only a single char *)
-            if Set.count content = 1 then
-                let startingState = nextID()
-                let transition = Set.map (fun symbol -> (startingState, Some symbol, acc)) content
-                let map = Map.add startingState (transition, false) Map.empty
-                (startingState,
-                map,
-                content)
-            else 
-                let startingState = nextID()
-                let endState = nextID()
-
-                (* create a set of transitions from the start to end on all the given symbols *)
-                let transitions = Set.map (fun symbol -> (startingState, Some symbol, endState)) content
-                (* create a map containing these transitions *)
-                let map = Map.add startingState (transitions, false) Map.empty
-                (* add a transition from the end state to the given end state(maybe just use the given end state as end state?) *)
-                let map2 = Map.add endState ((Set.ofList [(endState, None, acc)]), false) map
-                (startingState, map2, content)
+            let startingState = nextID()
+            (* create a set of transitions from the start to end on all the given symbols *)
+            let transitions = Set.map (fun symbol -> (Some symbol, acc)) content
+            (* create a map containing these transitions *)
+            let map = Map.ofList [(startingState, (transitions, false))]
+            (startingState, map, content)
         | Complement content -> regexToNFARec (Class(ClassContent(Set.difference ascii content))) acc
-
-    (*| Char c ->
-        let startingState = nextID()
-        (startingState,
-        Map.empty |> Map.add startingState ((Set.ofList [(startingState, Some c, acc)]), false),
-        Set.singleton c)*)
 
     | ZeroOrMore r ->
         let state = nextID()
         let (start, map, alphabet) = regexToNFARec r state
         (state,
-        Map.add state ((Set.ofList [(state, None, acc); (state, None, start)]), false) map,
+        Map.add state ((Set.ofList [(None, acc); (None, start)]), false) map,
         alphabet)
 
 let regexToNFA regex = 
     let endState = nextID()
     let (start, map, alphabet) = regexToNFARec regex endState
     (start,
-    map |> Map.add endState (Set.empty, true),
+    Map.add endState (Set.empty, true) map,
     alphabet)

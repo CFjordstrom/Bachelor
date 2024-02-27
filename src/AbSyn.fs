@@ -38,23 +38,20 @@ type Class =
     ClassContent of ClassContent
   | Complement of ClassContent
 
-//type Char = char
-
 type Concat = Regex list
 
 and Regex =
     Union of Regex * Regex
   | Concat of Concat
   | Class of Class
-  //| Char of Char
   | ZeroOrMore of Regex
 
 type State = int
-type Transition = State * char option * State
+type Transition = char option * State
 type NFA = State * Map<State, (Set<Transition> * bool)> * Set<char>
 
-type DFATransition = State * char * State
-type DFA = State * Map<State, (Set<DFATransition> * bool)> * Set<char>
+//type DFATransition = State * char * State
+type DFA = State * Map<State, (Map<char, State> * bool)> * Set<char>
 
 (* dfa state maps to a set of nfa states, a bool indicating if the dfa state is marked or not, and the transitions that belong to that dfa state *)
 type WorkList = Map<State, (Set<State> * bool)>
