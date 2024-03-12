@@ -9,10 +9,10 @@ let kleenesAlgorithm (dfa : DFARegexTransitions) : Regex =
     if Map.forall (fun state (transitions, isAccepting) -> state = start || isAccepting = true) map then
         Map.fold 
     else
+        (*
+        1. select state that is not starting or accepting
+        *)
 
-    
-
-(* assumes that there are no epsilon transitions *)
 let dfaToDFARegexTransitions (dfa : DFA) : DFARegexTransitions =
     let (start, dfaMap, alphabet) = dfa
     let mapRegexTransitions =

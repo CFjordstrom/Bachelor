@@ -7,7 +7,7 @@ open PrettyPrinter
 open RegexToNFA
 open NFAToDFA
 open MinimiseDFA
-open XFAToRegex
+//open XFAToRegex
 
 let parse (s : string) : Regex =
     Parser.Start Lexer.Token
@@ -38,18 +38,6 @@ let parseRegex (input : string) : Regex =
     else
         failwith "invalid input"
 
-(*
-    if System.IO.File.Exists input then
-        let inStream = File.OpenText input
-        let txt = inStream.ReadToEnd()
-        inStream.Close() 
-
-        if txt <> "" then
-            parse txt
-        else failwith "invalid input"
-    else
-        parse input
-*)
 [<EntryPoint>]
 let main (args : string[]) : int =
     match args.Length with
@@ -69,7 +57,7 @@ let main (args : string[]) : int =
         let minimisedDFA = minimiseDFA dfa
         printfn "Minimised DFA:\n%s\n" (ppDFA minimisedDFA)
 
-        let backToRegex = xfaToRegex minimisedDFA
-        printfn "Regex after converting back from minimised DFA:\n%A\n" backToRegex
+        //let backToRegex = xfaToRegex minimisedDFA
+        //printfn "Regex after converting back from minimised DFA:\n%A\n" backToRegex
         0
     | _ -> printfn "Usage: dotnet run <filename or regex>"; 1

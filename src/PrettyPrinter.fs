@@ -2,10 +2,13 @@ module PrettyPrinter
 
 open AbSyn
 
-let ppChar (c : char) : string =
-    match c with 
-    | c when c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' -> string c
-    | '/' | '|' | '*' | '+' | '?' | '{' | '}' | '(' | ')' | '\\' | '[' | ']' | '-' | '.' -> "\\" + string c
+let ppChar (c : char) (isAlphabet : bool) : string =
+    match c with
+    | '/' | '|' | '*' | '+' | '?' | '{' | '}' | '(' | ')' | '\\' | '[' | ']' | '-' | '.' -> 
+        if isAlphabet = true then
+            string c
+        else
+            "\\" + string c
     | _ -> string c
 
 let rec splitIntoConsecutiveChars (acc : string list) (current : string) (remaining : string) : string list =
@@ -19,14 +22,14 @@ let rec splitIntoConsecutiveChars (acc : string list) (current : string) (remain
         else
             splitIntoConsecutiveChars (if current <> "" then acc @ [current] else acc) (string head) tail
 
-let ppClassContent (content : ClassContent) : string =
+let ppChars (content : ClassContent) (isAlphabet : bool): string =
     let chars = Set.fold (fun acc c -> acc + string c) "" content
     let split = splitIntoConsecutiveChars [] "" chars
     List.fold (fun acc s -> 
         if String.length s < 3 then
-            acc + String.collect (fun c -> ppChar c) s
+            acc + String.collect (fun c -> ppChar c isAlphabet) s
         else
-            acc + ppChar s.[0] + "-" + ppChar s.[String.length s - 1]
+            acc + ppChar s.[0] isAlphabet + "-" + ppChar s.[String.length s - 1] isAlphabet
     ) "" split
 
 let ppClass (c : Class) : string =
@@ -34,12 +37,12 @@ let ppClass (c : Class) : string =
     | ClassContent content ->
         match Set.count content with
         | 0 -> "[]"
-        | 1 -> ppClassContent content
-        | _ -> "[" + ppClassContent content + "]"
+        | 1 -> ppChars content false
+        | _ -> "[" + ppChars content false + "]"
     | Complement content ->
         match Set.count content with
         | 0 -> "."
-        | _ -> "[^" + ppClassContent content + "]"
+        | _ -> "[^" + ppChars content false + "]"
 
 let rec ppRegex (regex : Regex) : string =
     match regex with
@@ -77,15 +80,14 @@ let transitionsToString (s1 : State) (ts : Set<Transition> * bool) =
     else
         res
 
-
 let rec ppNFA (nfa : NFA) : string =
     let (start, map, alphabet) = nfa
     ("Starting state: " + string start + "\n"
     + Map.fold (fun acc key value -> acc + transitionsToString key value) "" map
-    + "\nAlphabet: " + ppClassContent alphabet
+    + "\nAlphabet: " + ppChars alphabet true
     )
 
-let dfaTransitionsToString (s1 : State) (ts : Map<char, State> * bool) =
+let dfaTransitionsToString (s1 : State) (ts : Map<char, State> * bool) : string =
     let res = Map.fold (fun acc symbol s2 -> acc + string s1 + " -> " + string symbol + " " + string s2 + "\n") "" (fst ts)
     if snd ts = true then
         res + "State " + string s1 + " is accepting\n\n"
@@ -96,5 +98,5 @@ let rec ppDFA (dfa : DFA) : string =
     let (start, map, alphabet) = dfa
     ("Starting state: " + string start + "\n"
     + Map.fold (fun acc key value -> acc + dfaTransitionsToString key value) "" map
-    + "Alphabet: " + ppClassContent alphabet
+    + "Alphabet: " + ppChars alphabet true
     )
