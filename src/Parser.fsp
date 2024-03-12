@@ -28,7 +28,6 @@ let parse_error_rich =
 %token EOF
 
 %left PIPE
-%left STAR PLUS QMARK
 
 %start Start
 %type <AbSyn.Regex> Start

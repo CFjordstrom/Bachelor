@@ -1,6 +1,8 @@
 module MinimiseDFA
 
 open AbSyn
+open NFAToDFA
+open DFAToNFA
 
 let mutable counter = 0
 let nextID () =
@@ -37,7 +39,7 @@ let generateTransitionTable (group : State) (workList : WorkList) (dfa : DFA) : 
     true
 *)
 (* takes a worklist consisting of two groups: the accepting and rejecting states, the dfa and an empty map
-   and returns the transitions of the minimised dfa *)
+   and returns the minimised dfa *)
 let rec constructMinimalDFA (workList : WorkList) (dfa : DFA) : DFA =
     (*
     1. stop if all groups are singleton or marked
@@ -49,29 +51,38 @@ let rec constructMinimalDFA (workList : WorkList) (dfa : DFA) : DFA =
     *)
     let (dfaStart, dfaMap, alphabet) = dfa
     (* 1. if all groups are marked or singleton then stop *)
-    if Map.forall (fun state (transitions, mark) -> Set.count transitions = 1 || mark = true) workList then
-        // generate new states and transitions
+    if Map.forall (fun state (transitions, mark) -> Set.count transitions <= 1 || mark = true) workList then
+        (* find the group containing the dead states *)
         let deadStateKey = Map.findKey (fun start (states, mark) -> Set.contains -1 states) workList
-        (* remove the dead state *)
-        let workListDeadStateRemoved = Map.remove deadStateKey workList
-
-        let minimisedMap = 
-            (* for each group *)
-            Map.fold (fun acc state (states, mark) ->
-                let (transitions, isAccepting) = Map.find (Set.minElement states) dfaMap
-                (* remove transitions to the dead state and *)
-                let transitionsNoDead = Map.filter (fun symbol dest -> dest <> -1) transitions
-                (* fix transitions such that they map from char to group instead of char to dfa state *)
-                let transitionsToGroup = 
-                    Map.map (fun symbol dest ->
-                        Map.findKey (fun s (ss, mark) -> Set.contains dest ss) workListDeadStateRemoved
-                    ) transitionsNoDead
-                Map.add state (transitionsToGroup, isAccepting) acc
-            ) Map.empty workListDeadStateRemoved
-        
-        (Map.findKey (fun s (ss, mark) -> Set.contains dfaStart ss) workListDeadStateRemoved,
-        minimisedMap,
-        alphabet)
+        (* extract the dead states *)
+        let deadStates = fst <| Map.find deadStateKey workList
+        (* if the initial state is a dead state, then an empty DFA is returned *)
+        if Set.contains dfaStart deadStates then
+            (-1,
+            Map.ofList [(-1, (Map.empty, false))],
+            Set.empty)
+        else
+            (* remove the dead states *)
+            let workListDeadStateRemoved = Map.remove deadStateKey workList
+            (* remove transitions to dead states and make the transitions go from/to groups instead of DFA states *)
+            let minimisedMap = 
+                (* for each group *)
+                Map.fold (fun acc state (states, mark) ->
+                    (* get the transitions and accepting/rejecting flag for the DFA states in the group *)
+                    let (transitions, isAccepting) = Map.find (Set.minElement states) dfaMap
+                    (* remove transitions to the dead states *)
+                    let transitionsNoDead = Map.filter (fun symbol dest -> Set.contains dest deadStates = false) transitions
+                    (* fix transitions such that they map from char to group instead of char to dfa state *)
+                    let transitionsToGroup = 
+                        Map.map (fun symbol dest ->
+                            Map.findKey (fun s (ss, mark) -> Set.contains dest ss) workListDeadStateRemoved
+                        ) transitionsNoDead
+                    Map.add state (transitionsToGroup, isAccepting) acc
+                ) Map.empty workListDeadStateRemoved
+            
+            (Map.findKey (fun s (ss, mark) -> Set.contains dfaStart ss) workListDeadStateRemoved,
+            minimisedMap,
+            alphabet)
     else
         (* 2. pick unmarked and non-singleton group *)
         let (currentGroup, (currentDFAStates, currentMark)) =
@@ -135,7 +146,6 @@ let rec constructMinimalDFA (workList : WorkList) (dfa : DFA) : DFA =
 
 let minimiseDFA (dfa : DFA) : DFA =
     let (dfaStart, dfaMap, alphabet) = makeMoveTotal dfa
-
     (* split dfa into accepting and rejecting states *)
     let (accepting, rejecting) = 
         Map.fold (fun (accepting, rejecting) state (symbolToStateMap, isAccepting) ->
@@ -146,4 +156,7 @@ let minimiseDFA (dfa : DFA) : DFA =
         ) (Set.empty, Set.empty) dfaMap
     
     let workList = Map.ofList ([nextID(), (accepting, false); nextID(), (rejecting, false)])
-    constructMinimalDFA workList (dfaStart, dfaMap, alphabet)
+    let minimisedDFA = constructMinimalDFA workList (dfaStart, dfaMap, alphabet)
+    (* convert minimised DFA to NFA so it can be re-numbered *)
+    let nfa = dfaToNFA minimisedDFA
+    nfaToDFA nfa

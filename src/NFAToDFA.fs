@@ -8,19 +8,20 @@ let nextID () =
     (counter - 1)
 
 (* find the set of states in the given nfa that are reachable through epsilon transitions starting at the given state *)
-let rec epsilonClosure (state : State) (nfa : NFA) : Set<State> =
+let epsilonClosure (state : State) (nfa : NFA) : Set<State> =
     let (nfaStart, nfaMap, alphabet) = nfa
-
-    (* get the transitions for the given state *)
-    let transitions = fst <| Map.find state nfaMap
-    (* filter to get the epsilon transitions *)
-    let epsilonTransitions = Set.filter (fun (symbol, _) -> symbol = None) transitions
-    (* map to get the destination of the epsilon transitions and calculate the epsilon closure of them*)
-    let destinationsOfEpsilonTransitions = Set.map (fun (_, dest) -> epsilonClosure dest nfa) epsilonTransitions
-    (* combine all the states that can be reached into one set of states *)
-    let combinedDestinations = Set.fold (fun acc set -> Set.union acc set) Set.empty destinationsOfEpsilonTransitions
-    (* add the state itself *)
-    Set.add state combinedDestinations
+    let rec ecHelper s visited =
+        (* get the transitions for the given state *)
+        let transitions = fst <| Map.find s nfaMap
+        (* filter to get the epsilon transitions that are not to itself *)
+        let epsilonTransitions = Set.filter (fun (symbol, dest) -> symbol = None && Set.contains dest visited = false) transitions
+        (* map to get the destination of the epsilon transitions and calculate the epsilon closure of them*)
+        let destinationsOfEpsilonTransitions = Set.map (fun (_, dest) -> ecHelper dest (Set.add s visited)) epsilonTransitions
+        (* combine all the states that can be reached into one set of states *)
+        let combinedDestinations = Set.fold (fun acc set -> Set.union acc set) Set.empty destinationsOfEpsilonTransitions
+        (* add the state itself *)
+        Set.add s combinedDestinations
+    ecHelper state Set.empty
 
 (* takes a set of states and returns a set containing the epsilon closures of those states *)
 let epsilonClosures (states : Set<State>) (nfa : NFA) : Set<State> =
@@ -111,6 +112,9 @@ let addAcceptingOrRejecting (transitionMap : Map<State, (Map<char, State>)>) (wo
 
 let nfaToDFA (nfa : NFA) : DFA =
     let (start, map, alphabet) = nfa
+
+    (* set counter to 0 for renumbering - don't like doing this, but don't know what else to do *)
+    counter <- 0
     (* find the epsilon closure of the starting state *)
     let s0 = epsilonClosure start nfa
     let startingState = nextID()

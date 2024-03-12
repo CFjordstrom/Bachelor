@@ -30,6 +30,17 @@ ClassContent -> epsilon
 
 ClassRange  -> any char
             | any char - any char
+
+
+pp:
+Regex -> Concat | Regex '|' Concat
+Concat -> epsilon | Rep Concat
+Rep -> Atom | Atom * | Atom + | Atom ?
+Atom -> Char | ( Regex ) | Class
+Char ->
+Class -> . | [ ClassContent ] | [ ^ ClassContent ]
+ClassRange ->
+
 *)
 
 type ClassContent = Set<char>
@@ -55,3 +66,5 @@ type DFA = State * Map<State, (Map<char, State> * bool)> * Set<char>
 
 (* dfa state maps to a set of nfa states, a bool indicating if the dfa state is marked or not, and the transitions that belong to that dfa state *)
 type WorkList = Map<State, (Set<State> * bool)>
+
+type DFARegexTransitions = State * Map<State, (Map<Regex, State> * bool)> * Set<char>
