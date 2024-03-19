@@ -3,11 +3,11 @@ module AbSyn
 
 Start -> / Regex /
 
-Regex  -> Concat
+Regex  -> Seq
         | Regex '|' Regex
 
 Seq    -> Epsilon
-Seq    -> Rep Seq
+        | Rep Seq
 
 Rep    -> Atom
         | Atom *

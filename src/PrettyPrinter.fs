@@ -40,20 +40,23 @@ let ppClass (c : Class) : string =
 
 let rec ppRegex (regex : Regex) : string =
     match regex with
-    | Union (r, seq) -> ppRegex r + "|" + ppSeq seq
+    | Union(r, seq) -> ppRegex r + "|" + ppSeq seq
     | s -> ppSeq s
 
 and ppSeq (seq : Regex) : string =
     match seq with
-    | Seq(rep, Epsilon) -> ppRep rep
+    (*| Seq(rep, Epsilon) -> ppRep rep
     | Seq(rep, seq) -> ppRep rep + ppSeq seq
-    | _ -> "\u03B5" //epsilon
+    | _ -> ""*)
+    | Epsilon -> ""
+    | Seq(rep, seq) -> ppRep rep + ppSeq seq
+    | _ -> ppRep seq
 
 and ppRep (rep : Regex) : string =
     match rep with
     | ZeroOrMore atom -> ppAtom atom + "*"
-    | Seq(atom1, Seq(ZeroOrMore(atom2), seq)) when atom1 = atom2 -> ppAtom atom1 + "+" + ppSeq seq
-    | Seq(Union(atom, Epsilon), seq) -> ppAtom atom + "?" + ppSeq seq
+    | Seq(atom1, Seq(ZeroOrMore(atom2), Epsilon)) when atom1 = atom2 -> ppAtom atom1 + "+"
+    | Union(atom, Epsilon) -> ppAtom atom + "?"
     | atom -> ppAtom atom
 
 and ppAtom (atom : Regex) : string  =
