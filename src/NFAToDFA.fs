@@ -2,7 +2,7 @@ module NFAToDFA
 
 open AbSyn
 
-let mutable counter = 0
+let mutable counter = 1
 let nextID () =
     counter <- counter + 1
     (counter - 1)
@@ -62,7 +62,7 @@ let rec constructSubset (workList : WorkList) (nfa : NFA) (transitionMap : Map<S
         3.3 add a transition in the dfa from the current state to the epsilon closure on the current symbol
     *)
     (* 1. stop if no more unmarked states *)
-    if Map.forall (fun _ (_, mark) -> mark = true) workList then
+    if Map.forall (fun _ (_, mark) -> mark) workList then
         (workList, transitionMap)
     else
         let (nfaStart, nfaMap, alphabet) = nfa
@@ -113,8 +113,8 @@ let addAcceptingOrRejecting (transitionMap : Map<State, (Map<char, State>)>) (wo
 let nfaToDFA (nfa : NFA) : DFA =
     let (start, map, alphabet) = nfa
 
-    (* set counter to 0 for renumbering - don't like doing this, but don't know what else to do *)
-    counter <- 0
+    (* set counter to 1 for renumbering - don't like doing this, but don't know what else to do *)
+    counter <- 1
     (* find the epsilon closure of the starting state *)
     let s0 = epsilonClosure start nfa
     let startingState = nextID()

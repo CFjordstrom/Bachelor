@@ -32,7 +32,7 @@ let parse_error_rich =
 %start Start
 %type <AbSyn.Regex> Start
 %type <AbSyn.Regex> Regex
-%type <AbSyn.Concat> Concat
+%type <AbSyn.Regex> Seq
 %type <AbSyn.Regex> Rep
 %type <AbSyn.Regex> Atom
 %type <AbSyn.Regex> Char
@@ -44,19 +44,18 @@ let parse_error_rich =
 Start   : SLASH Regex SLASH EOF { $2 }
 ;
 
-Regex   : Concat { Concat($1) }
+Regex   : Seq { $1 }
         | Regex PIPE Regex { Union($1, $3) }
 ;
 
-Concat  : { [] }
-        | Rep Concat { $1 :: $2 }
+Seq     : { Epsilon }
+        | Rep Seq { Seq($1, $2) }
 ;
 
 Rep     : Atom { $1 }
         | Atom STAR { ZeroOrMore($1) }
-        | Atom PLUS { Concat([$1; ZeroOrMore($1)]) }
-        | Atom QMARK { Union($1, Concat([])) }
-        //| Atom NUMREPS { NumReps($1, $2) }
+        | Atom PLUS { Seq($1, Seq(ZeroOrMore($1), Epsilon)) }
+        | Atom QMARK { Union($1, Epsilon) }
 ;
 
 Atom    : Char { $1 }

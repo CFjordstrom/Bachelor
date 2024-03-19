@@ -4,7 +4,7 @@ open AbSyn
 open NFAToDFA
 open DFAToNFA
 
-let mutable counter = 0
+let mutable counter = 1
 let nextID () =
     counter <- counter + 1
     (counter - 1)
@@ -51,7 +51,7 @@ let rec constructMinimalDFA (workList : WorkList) (dfa : DFA) : DFA =
     *)
     let (dfaStart, dfaMap, alphabet) = dfa
     (* 1. if all groups are marked or singleton then stop *)
-    if Map.forall (fun state (transitions, mark) -> Set.count transitions <= 1 || mark = true) workList then
+    if Map.forall (fun state (transitions, mark) -> Set.count transitions <= 1 || mark) workList then
         (* find the group containing the dead states *)
         let deadStateKey = Map.findKey (fun start (states, mark) -> Set.contains -1 states) workList
         (* extract the dead states *)

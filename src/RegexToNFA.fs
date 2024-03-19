@@ -2,7 +2,7 @@ module RegexToNFA
 
 open AbSyn
 
-let mutable counter = 0
+let mutable counter = 1
 let nextID () =
     counter <- counter + 1
     (counter - 1)
@@ -17,18 +17,7 @@ let mapDisjointUnion map1 map2 =
         else (map2, map1)
     Map.fold (fun acc key value -> Map.add key value acc) longer shorter
 
-(* takes a list of regexes and an nfa containing the desired ending state as its starting 
-state and computes the NFA that results from combining them all sequentially *)
-let rec nfaFromReverseRegexList (rgxlst : Regex list) (acc : NFA): NFA =
-    match rgxlst with
-    | [] -> acc
-    | (r :: rs) ->
-        let (accStart, accMap, accAlphabet) = acc
-        let (regexStart, regexMap, regexAlphabet) = regexToNFARec r accStart
-        let nfa = (regexStart, mapDisjointUnion accMap regexMap, Set.union accAlphabet regexAlphabet)
-        nfaFromReverseRegexList rs nfa
-
-and regexToNFARec (regex : Regex) (acc : State) : NFA =
+let rec regexToNFARec (regex : Regex) (acc : State) : NFA =
     match regex with
     | Union (r1, r2) ->
         let startingState = nextID()
@@ -42,7 +31,13 @@ and regexToNFARec (regex : Regex) (acc : State) : NFA =
         Map.add startingState ((Set.ofList [(None, sStart); (None, tStart)]), false) combinedMap,
         Set.union sAlphabet tAlphabet)
 
-    | Concat regexList -> nfaFromReverseRegexList (List.rev regexList) (acc, Map.empty, Set.empty)
+    //| Concat regexList -> nfaFromReverseRegexList (List.rev regexList) (acc, Map.empty, Set.empty)
+    | Seq (r1, r2) ->
+        let (tStart, tMap, tAlphabet) = regexToNFARec r2 acc
+        let (sStart, sMap, sAlphabet) = regexToNFARec r1 tStart
+        (sStart,
+        mapDisjointUnion sMap tMap,
+        Set.union sAlphabet tAlphabet)
 
     | Class c ->
         match c with
@@ -61,6 +56,8 @@ and regexToNFARec (regex : Regex) (acc : State) : NFA =
         (state,
         Map.add state ((Set.ofList [(None, acc); (None, start)]), false) map,
         alphabet)
+    
+    | Epsilon -> (acc, Map.empty, Set.empty)
 
 let regexToNFA regex = 
     let endState = nextID()

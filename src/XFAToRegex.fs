@@ -1,36 +1,108 @@
 module XFAToRegex
 
 open AbSyn
-open NFAToDFA
+open DFAToNFA
 
-let kleenesAlgorithm (dfa : DFARegexTransitions) : Regex =
-    let (start, map, alphabet) = dfa
-    (* stop when the starting state and accepting states are left *)
-    if Map.forall (fun state (transitions, isAccepting) -> state = start || isAccepting = true) map then
-        Map.fold 
-    else
-        (*
-        1. select state that is not starting or accepting
-        *)
 
-let dfaToDFARegexTransitions (dfa : DFA) : DFARegexTransitions =
-    let (start, dfaMap, alphabet) = dfa
-    let mapRegexTransitions =
-        (* for each state *)
-        Map.map (fun state (map, isAccepting) ->
-            (* convert transitions to regexes *)
-            let regexMap =
-                Map.fold (fun acc symbol dest ->
-                    let regex = Class(ClassContent(Set.ofList [symbol]))
-                    Map.add regex dest acc
-                ) Map.empty map
-            (regexMap, isAccepting)
-        ) dfaMap
-    printfn "%A" mapRegexTransitions
-    (start, mapRegexTransitions, alphabet)
-        
+let nfaToGNFAMap (nfa : NFA) : GNFA =
+    let (nfaStart, nfaMap, alphabet) = nfa
+    let keys = Map.keys nfaMap
+    let start = 0
+    let accept = Seq.max keys + 1
+
+    (* create transitions from old accepting states to the new accepting state *)
+    let mapTransitionsToNewAccepting = 
+        Map.map (fun state (transitions, isAccepting) -> 
+            if isAccepting then
+                (Set.add (None, accept) transitions, false)
+            else
+                (transitions, isAccepting)
+        ) nfaMap
+
+    (* add the new states to the map *)
+    let newMap = 
+        Map.add accept (Set.empty, true)
+        <| Map.add start (Set.singleton (None, nfaStart), false) mapTransitionsToNewAccepting
+    
+    let gnfa = Array2D.create (Seq.length keys + 2) (Seq.length keys + 2) None
+
+    (* convert nfa to gnfa *)
+    (* for each mapping *)
+    Map.iter (fun state (transitions, isAccepting) ->
+            (* for each transition *)
+            Set.iter (fun (symbol, dest) ->
+                (* convert it to a regular expression *)
+                let transition =
+                    match symbol with
+                    | Some c -> Seq(Class ( ClassContent ( Set.singleton c)), Epsilon)
+                    | None -> Epsilon
+
+                (* update the corresponding field with a new regular expression *)
+                match gnfa[state, dest] with
+                | Some r -> 
+                    gnfa[state, dest] <- Some <| Union(r, transition)
+                | None -> 
+                    gnfa[state, dest] <- Some transition
+            ) transitions
+    ) newMap
+
+    gnfa
+
+let rec combineRegex (regex1 : Regex) (regex2 : Regex) : Regex =
+    match regex1, regex2 with
+    | Epsilon, Epsilon -> Epsilon
+    | Epsilon, r -> r
+    | r, Epsilon -> r
+    | Seq(r1, Epsilon), r2 -> Seq(r1, r2)
+    | Seq(r1, r2), r3 -> Seq(r1, combineRegex r2 r3)
+    | r1, r2 -> Seq(r1, r2)
+
+let kleenesAlgorithm (gnfa : GNFA) : Regex =
+    let len = Array2D.length1 gnfa
+    (* for every state that needs to be removed *)
+    Array2D.iteri (fun i j t -> 
+        if i = j && i <> 0 && i <> len - 1 then
+            let incoming = gnfa[*, i]
+            let outgoing = gnfa[i, *]
+            (* for every incoming transition *)
+            Array.iteri (fun k v1 ->
+                if k <> i then
+                    match v1 with
+                    | None -> ()
+                    | Some rIn ->
+                    (* for every outgoing transition *)
+                        Array.iteri (fun l v2 ->
+                            if l <> i then
+                                match v2 with
+                                | None -> ()
+                                | Some rOut ->
+                                    let r1 =
+                                        match t with
+                                        | Some (Seq(rSelf, Epsilon)) ->
+                                            let rInRSelf = combineRegex rIn (Seq(ZeroOrMore(rSelf), Epsilon))
+                                            combineRegex rInRSelf rOut
+                                        | Some rSelf ->
+                                            let rInRSelf = combineRegex rIn (ZeroOrMore(rSelf))
+                                            combineRegex rInRSelf rOut
+                                        | None -> combineRegex rIn rOut
+
+                                    match gnfa[k, l] with
+                                    | Some r2 -> gnfa[k, l] <- Some (Union(r1, r2))
+                                    | None -> gnfa[k, l] <- Some r1
+                        ) outgoing
+            ) incoming
+    ) gnfa
+
+    match gnfa[0, len - 1] with
+    | Some r -> r
+    | None -> Epsilon
+
 let xfaToRegex (automaton : obj) : Regex =
-    match automaton with
-    | :? NFA as nfa -> kleenesAlgorithm << dfaToDFARegexTransitions <| nfaToDFA nfa
-    | :? DFA as dfa -> kleenesAlgorithm <| dfaToDFARegexTransitions dfa
-    | _ -> failwith "invalid argument type to xfaToRegex"
+    let input = 
+        match automaton with
+        | :? NFA as nfa -> nfa
+        | :? DFA as dfa -> dfaToNFA dfa
+        | _ -> failwith "invalid argument type to xfaToRegex"
+    
+    let gnfa = nfaToGNFAMap input
+    kleenesAlgorithm gnfa

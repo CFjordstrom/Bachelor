@@ -7,7 +7,7 @@ open PrettyPrinter
 open RegexToNFA
 open NFAToDFA
 open MinimiseDFA
-//open XFAToRegex
+open XFAToRegex
 
 let parse (s : string) : Regex =
     Parser.Start Lexer.Token
@@ -29,11 +29,11 @@ let parseRegex (input : string) : Regex =
         | Lexer.LexicalError (info,(line, col)) ->
             printfn "%s at line %d, position %d\n" info line col
             System.Environment.Exit 1
-            Concat []
+            Epsilon
         | _ -> 
             printfn "parse error"
             System.Environment.Exit 1
-            Concat []
+            Epsilon
 
     else
         failwith "invalid input"
@@ -57,7 +57,8 @@ let main (args : string[]) : int =
         let minimisedDFA = minimiseDFA dfa
         printfn "Minimised DFA:\n%s\n" (ppDFA minimisedDFA)
 
-        //let backToRegex = xfaToRegex minimisedDFA
-        //printfn "Regex after converting back from minimised DFA:\n%A\n" backToRegex
+        let backToRegex = xfaToRegex minimisedDFA
+        printfn "Regex Syntax Tree after converting back from minimised DFA:\n%A\n" backToRegex
+        printfn "Regex after converting back from minimised DFA:\n%s\n" (ppRegex backToRegex)
         0
     | _ -> printfn "Usage: dotnet run <filename or regex>"; 1

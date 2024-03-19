@@ -6,8 +6,8 @@ Start -> / Regex /
 Regex  -> Concat
         | Regex '|' Regex
 
-Concat -> epsilon
-        | Rep Concat
+Seq    -> Epsilon
+Seq    -> Rep Seq
 
 Rep    -> Atom
         | Atom *
@@ -33,8 +33,8 @@ ClassRange  -> any char
 
 
 pp:
-Regex -> Concat | Regex '|' Concat
-Concat -> epsilon | Rep Concat
+Regex -> Seq | Regex '|' Seq
+Seq -> epsilon | Rep Seq
 Rep -> Atom | Atom * | Atom + | Atom ?
 Atom -> Char | ( Regex ) | Class
 Char ->
@@ -49,13 +49,14 @@ type Class =
     ClassContent of ClassContent
   | Complement of ClassContent
 
-type Concat = Regex list
+//type Concat = Regex list
 
-and Regex =
+type Regex =
     Union of Regex * Regex
-  | Concat of Concat
+  | Seq of Regex * Regex
   | Class of Class
   | ZeroOrMore of Regex
+  | Epsilon
 
 type State = int
 type Transition = char option * State
@@ -67,4 +68,5 @@ type DFA = State * Map<State, (Map<char, State> * bool)> * Set<char>
 (* dfa state maps to a set of nfa states, a bool indicating if the dfa state is marked or not, and the transitions that belong to that dfa state *)
 type WorkList = Map<State, (Set<State> * bool)>
 
-type DFARegexTransitions = State * Map<State, (Map<Regex, State> * bool)> * Set<char>
+//type DFARegexTransitions = State * Map<State, (Map<Regex, State> * bool)> * Set<char>
+type GNFA = Regex option[,]
