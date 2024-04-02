@@ -1,7 +1,21 @@
 module AbSyn
 (*
 
-Start -> / Regex /
+Prog -> Exp
+
+Exp  -> let ID = Exp in Exp
+      | ID
+      | Exp & Exp
+      | Exp | Exp
+      | Exp + Exp
+      | ^ Exp
+      | NFA(Exp)
+      | DFA(Exp)
+      | Regex(Exp)
+      | RegLang
+
+RegLang -> / Regex / EOF
+         | { NFA } EOF
 
 Regex  -> Seq
         | Regex '|' Regex
@@ -31,15 +45,10 @@ ClassContent -> epsilon
 ClassRange  -> any char
             | any char - any char
 
+NFA    -> epsilon
+        | State -> Regex State NFA
 
-pp:
-Regex -> Seq | Regex '|' Seq
-Seq -> epsilon | Rep Seq
-Rep -> Atom | Atom * | Atom + | Atom ?
-Atom -> Char | ( Regex ) | Class
-Char ->
-Class -> . | [ ClassContent ] | [ ^ ClassContent ]
-ClassRange ->
+State   -> ' *any alphanumerical chars* '
 
 *)
 
@@ -70,3 +79,12 @@ type WorkList = Map<State, (Set<State> * bool)>
 
 //type DFARegexTransitions = State * Map<State, (Map<Regex, State> * bool)> * Set<char>
 type GNFA = Regex option[,]
+
+type Transitions = Set<string * Regex * string>
+
+type RegLang =
+    DFA of DFA
+  | NFA of NFA
+  | GNFA of GNFA
+  | Regex of Regex
+  | Transitions of Transitions

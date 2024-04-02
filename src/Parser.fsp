@@ -18,19 +18,22 @@ let parse_error_rich =
 
 %}
 
-%token <char> CHARLIT
 //%token <int> NUMREPS
-%token SLASH DASH DOT
+%token SLASH LCURLY RCURLY
 %token PIPE
-%token LBRACKET RBRACKET CARET
 %token STAR PLUS QMARK
 %token LPAR RPAR
+%token <char> CHARLIT
+%token LBRACKET RBRACKET CARET DOT
+%token DASH
+%token <string> STATE 
+%token ARROW
 %token EOF
 
 %left PIPE
 
-%start Start
-%type <AbSyn.Regex> Start
+%start RegLang
+%type <AbSyn.RegLang> RegLang
 %type <AbSyn.Regex> Regex
 %type <AbSyn.Regex> Seq
 %type <AbSyn.Regex> Rep
@@ -39,9 +42,11 @@ let parse_error_rich =
 %type <AbSyn.Class> Class
 %type <AbSyn.ClassContent> ClassContent
 %type <AbSyn.ClassContent> ClassRange
+%type <AbSyn.Transitions> Nfa
 
 %%
-Start   : SLASH Regex SLASH EOF { $2 }
+RegLang         : SLASH Regex SLASH EOF { Regex($2) }
+                | LCURLY Nfa RCURLY EOF { Transitions($2) }
 ;
 
 Regex   : Seq { $1 }
@@ -71,12 +76,16 @@ Class   : DOT { Complement(Set.empty) }
         | LBRACKET CARET ClassContent RBRACKET { Complement($3) }
 ;
 
-ClassContent    :  { Set.empty }
+ClassContent    : { Set.empty }
                 | ClassRange ClassContent { Set.union $1 $2 }
 ;
 
 ClassRange      : CHARLIT { Set.singleton $1 }
                 | CHARLIT DASH CHARLIT { Set.ofList [$1..$3] }
+;
+
+Nfa     : { Set.empty }
+        | STATE ARROW Regex STATE Nfa { Set.union (Set.singleton($1, $3, $4)) $5 }
 ;
 
 %%

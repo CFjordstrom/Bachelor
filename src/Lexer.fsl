@@ -28,7 +28,12 @@ let lexerError lexbuf s =
 }
 
 rule Token = parse
-      '|'                   { Parser.PIPE }
+      [' ' '\t' '\r']+      { Token lexbuf }
+    | ['\n' '\012']         { currentLine  <- currentLine + 1;
+                            lineStartPos <-  lexbuf.StartPos.pos_cnum
+                                             :: lineStartPos;
+                            Token lexbuf }
+    | '|'                   { Parser.PIPE }
     | '*'                   { Parser.STAR }
     | '+'                   { Parser.PLUS }
     | '?'                   { Parser.QMARK }
@@ -40,6 +45,14 @@ rule Token = parse
     | '['                   { Parser.LBRACKET }
     | ']'                   { Parser.RBRACKET }
     | '^'                   { Parser.CARET }
+    | '{'                   { Parser.LCURLY }
+    | '}'                   { Parser.RCURLY }
+    | '-' '>'               { Parser.ARROW }
+    | '\'' ['a'-'z' 'A'-'Z' '0'-'9']+ '\''
+                            { 
+                                let str = Encoding.UTF8.GetString(lexbuf.Lexeme)
+                                Parser.STATE (str.[1..(String.length str - 2)])
+                            }
     | [^ '/' '|' '*' '+' '?' '{' '}' '(' ')' '[' ']' '-' '.' '\\']
                             { 
                                 let str = Encoding.UTF8.GetString(lexbuf.Lexeme)
@@ -52,11 +65,3 @@ rule Token = parse
                             }
     | eof                   { Parser.EOF }
     | _                     { lexerError lexbuf "Illegal symbol in input" }
-
-(*
-| '{' ['1' - '9']['0' - '9']* '}'
-                            {
-                                let str = Encoding.UTF8.GetString(lexbuf.Lexeme)
-                                Parser.NUMREPS (int str.[1..(str.Length - 2)])
-                            }
-*)
