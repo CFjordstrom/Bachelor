@@ -48,15 +48,20 @@ let nfaToGNFAMap (nfa : NFA) : GNFA =
 
     gnfa
 
-let rec combineRegex (regex1 : Regex) (regex2 : Regex) : Regex =
+(* Assumes that regex1 and regex2 are right associated Seqs *)
+let rec makeSeq (regex1 : Regex) (regex2 : Regex) : Regex =
     match regex1, regex2 with
-    | Epsilon, Epsilon -> Epsilon
     | Epsilon, r -> r
     | r, Epsilon -> r
     | Seq(r1, Epsilon), r2 -> Seq(r1, r2)
-    | Seq(r1, r2), r3 -> Seq(r1, combineRegex r2 r3)
+    | Seq(r1, r2), r3 -> Seq(r1, makeSeq r2 r3)
     | r1, r2 -> Seq(r1, r2)
 
+(*
+let rec makeUnion (regex1 : Regex) (regex2 : Regex ) : Regex =
+    match regex1, regex2 with
+    | 
+*)
 let kleenesAlgorithm (gnfa : GNFA) : Regex =
     let len = Array2D.length1 gnfa
     (* for every state that needs to be removed *)
@@ -79,12 +84,12 @@ let kleenesAlgorithm (gnfa : GNFA) : Regex =
                                     let r1 =
                                         match t with
                                         | Some (Seq(rSelf, Epsilon)) ->
-                                            let rInRSelf = combineRegex rIn (Seq(ZeroOrMore(rSelf), Epsilon))
-                                            combineRegex rInRSelf rOut
+                                            let rInRSelf = makeSeq rIn (Seq(ZeroOrMore(rSelf), Epsilon))
+                                            makeSeq rInRSelf rOut
                                         | Some rSelf ->
-                                            let rInRSelf = combineRegex rIn (ZeroOrMore(rSelf))
-                                            combineRegex rInRSelf rOut
-                                        | None -> combineRegex rIn rOut
+                                            let rInRSelf = makeSeq rIn (ZeroOrMore(rSelf))
+                                            makeSeq rInRSelf rOut
+                                        | None -> makeSeq rIn rOut
 
                                     match gnfa[k, l] with
                                     | Some r2 -> gnfa[k, l] <- Some (Union(r1, r2))

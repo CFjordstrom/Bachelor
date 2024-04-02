@@ -4,7 +4,7 @@ open AbSyn
 
 let ppChar (c : char) : string =
     match c with
-    | '/' | '|' | '*' | '+' | '?' | '{' | '}' | '(' | ')' | '\\' | '[' | ']' | '-' | '.' -> "\\" + string c
+    | '/' | '|' | '*' | '+' | '?' | '{' | '}' | '(' | ')' | '\\' | '[' | ']' | '-' | '.' | ' ' -> "\\" + string c
     | _ -> string c
 
 let rec splitIntoConsecutiveChars (acc : (char * char) list) (current : char list) (remaining : char list) : (char * char) list =
@@ -45,9 +45,6 @@ let rec ppRegex (regex : Regex) : string =
 
 and ppSeq (seq : Regex) : string =
     match seq with
-    (*| Seq(rep, Epsilon) -> ppRep rep
-    | Seq(rep, seq) -> ppRep rep + ppSeq seq
-    | _ -> ""*)
     | Epsilon -> ""
     | Seq(rep, seq) -> ppRep rep + ppSeq seq
     | _ -> ppRep seq
