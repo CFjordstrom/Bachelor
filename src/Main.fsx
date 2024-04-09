@@ -9,11 +9,11 @@ open NFAToDFA
 open MinimiseDFA
 open XFAToRegex
 
-let parse (s : string) : RegLang =
-    Parser.RegLang Lexer.Token
+let parse (s : string) : ExtendedRegex =
+    Parser.Start Lexer.Token
     <| LexBuffer<_>.FromBytes (Encoding.UTF8.GetBytes s)
 
-let parseRegLang (input : string) : RegLang =
+let parseRegLang (input : string) : ExtendedRegex =
     let text =
         if System.IO.File.Exists input then
             let inStream = File.OpenText input
@@ -29,12 +29,11 @@ let parseRegLang (input : string) : RegLang =
         | Lexer.LexicalError (info,(line, col)) ->
             printfn "%s at line %d, position %d\n" info line col
             System.Environment.Exit 1
-            Regex(Epsilon)
+            Epsilon
         | err -> 
             printfn "%A" err
             System.Environment.Exit 1
-            Regex(Epsilon)
-
+            Epsilon
     else
         failwith "invalid input"
 
@@ -42,21 +41,21 @@ let parseRegLang (input : string) : RegLang =
 let main (args : string[]) : int =
     match args.Length with
     | 1 ->
-        let regLang = parseRegLang args.[0]
-        printfn "RegLang Syntax tree:\n%A\n" regLang
-        (*printfn "Regex:\n%s\n" (ppRegex regex)
+        let regex = parseRegLang args.[0]
+        //printfn "Regex Syntax tree:\n%A\n" regex
+        printfn "Regex:\n%s\n" (ppRegex regex)
         let nfa = regexToNFA regex
         let (start, map, alphabet) = nfa
-        printfn "NFA:\n%A\n" nfa
+        //printfn "NFA:\n%A\n" nfa
         printfn "NFA:\n%s\n" (ppNFA nfa)
         
         let dfa = nfaToDFA nfa
-        printfn "DFA:\n%A\n" dfa
+        //printfn "DFA:\n%A\n" dfa
         printfn "DFA:\n%s\n" (ppDFA dfa)
-
-        let minimisedDFA = minimiseDFA dfa
-        printfn "Minimised DFA:\n%s\n" (ppDFA minimisedDFA)
-
+        
+        //let minimisedDFA = minimiseDFA dfa
+        //printfn "Minimised DFA:\n%s\n" (ppDFA minimisedDFA)
+        (*
         let backToRegex = xfaToRegex minimisedDFA
         printfn "Regex Syntax Tree after converting back from minimised DFA:\n%A\n" backToRegex
         printfn "Regex after converting back from minimised DFA:\n%s\n" (ppRegex backToRegex)*)

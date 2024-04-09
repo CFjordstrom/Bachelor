@@ -38,27 +38,37 @@ let ppClass (c : Class) : string =
         | 0 -> "."
         | _ -> "[^" + ppChars content + "]"
 
-let rec ppRegex (regex : Regex) : string =
+let rec ppRegex (regex : ExtendedRegex) : string =
     match regex with
     | Union(r, seq) -> ppRegex r + "|" + ppSeq seq
     | s -> ppSeq s
 
-and ppSeq (seq : Regex) : string =
+and ppSeq (seq : ExtendedRegex) : string =
     match seq with
     | Epsilon -> ""
     | Seq(rep, seq) -> ppRep rep + ppSeq seq
     | _ -> ppRep seq
 
-and ppRep (rep : Regex) : string =
+and ppRep (rep : ExtendedRegex) : string =
     match rep with
     | ZeroOrMore atom -> ppAtom atom + "*"
     | Seq(atom1, Seq(ZeroOrMore(atom2), Epsilon)) when atom1 = atom2 -> ppAtom atom1 + "+"
     | Union(atom, Epsilon) -> ppAtom atom + "?"
     | atom -> ppAtom atom
 
-and ppAtom (atom : Regex) : string  =
+and ppAtom (atom : ExtendedRegex) : string  =
     match atom with
     | Class c -> ppClass c
+    | Transitions ts ->
+        "{" + List.fold (fun acc t ->
+            let str = 
+                match t with
+                | (startState, symbol, Some endState) ->
+                    "#" + startState + " -> " + ppRegex symbol + " #" + endState
+                | (startState, symbol, None) ->
+                    "#" + startState + " -> " + ppRegex symbol
+            acc + str + ";"
+        ) "" ts + "}"
     | r -> "(" + ppRegex r + ")"
 
 let transitionToString (s1: State) (t : Transition) =

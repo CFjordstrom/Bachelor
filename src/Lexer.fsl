@@ -47,11 +47,12 @@ rule Token = parse
     | '^'                   { Parser.CARET }
     | '{'                   { Parser.LCURLY }
     | '}'                   { Parser.RCURLY }
-    | '-' '>'               { Parser.ARROW }
-    | '\'' ['a'-'z' 'A'-'Z' '0'-'9']+ '\''
+    | ';'                   { Parser.SEMICOLON}
+    | "->"                  { Parser.ARROW }
+    | '#' ['a'-'z' 'A'-'Z' '0'-'9']+
                             { 
                                 let str = Encoding.UTF8.GetString(lexbuf.Lexeme)
-                                Parser.STATE (str.[1..(String.length str - 2)])
+                                Parser.STATE (str.[1..(String.length str - 1)])
                             }
     | [^ '/' '|' '*' '+' '?' '{' '}' '(' ')' '[' ']' '-' '.' '\\']
                             { 

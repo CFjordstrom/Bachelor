@@ -19,38 +19,38 @@ let parse_error_rich =
 %}
 
 //%token <int> NUMREPS
-%token SLASH LCURLY RCURLY
+%token SLASH
 %token PIPE
 %token STAR PLUS QMARK
 %token LPAR RPAR
 %token <char> CHARLIT
+%token LCURLY RCURLY
 %token LBRACKET RBRACKET CARET DOT
 %token DASH
 %token <string> STATE 
-%token ARROW
+%token ARROW SEMICOLON
 %token EOF
 
 %left PIPE
 
-%start RegLang
-%type <AbSyn.RegLang> RegLang
-%type <AbSyn.Regex> Regex
-%type <AbSyn.Regex> Seq
-%type <AbSyn.Regex> Rep
-%type <AbSyn.Regex> Atom
-%type <AbSyn.Regex> Char
+%start Start
+%type <AbSyn.ExtendedRegex> Start
+%type <AbSyn.ExtendedRegex> ExtendedRegex
+%type <AbSyn.ExtendedRegex> Seq
+%type <AbSyn.ExtendedRegex> Rep
+%type <AbSyn.ExtendedRegex> Atom
+%type <AbSyn.ExtendedRegex> Char
 %type <AbSyn.Class> Class
 %type <AbSyn.ClassContent> ClassContent
 %type <AbSyn.ClassContent> ClassRange
 %type <AbSyn.Transitions> Nfa
 
 %%
-RegLang         : SLASH Regex SLASH EOF { Regex($2) }
-                | LCURLY Nfa RCURLY EOF { Transitions($2) }
+Start   : SLASH ExtendedRegex SLASH EOF { $2 }
 ;
 
-Regex   : Seq { $1 }
-        | Regex PIPE Regex { Union($1, $3) }
+ExtendedRegex   : Seq { $1 }
+                | ExtendedRegex PIPE ExtendedRegex { Union($1, $3) }
 ;
 
 Seq     : { Epsilon }
@@ -64,8 +64,9 @@ Rep     : Atom { $1 }
 ;
 
 Atom    : Char { $1 }
-        | LPAR Regex RPAR { $2 }
+        | LPAR ExtendedRegex RPAR { $2 }
         | Class { Class($1) }
+        | LCURLY Nfa RCURLY { Transitions($2) }
 ;
 
 Char    : CHARLIT { Class(ClassContent(Set.singleton $1)) }
@@ -84,8 +85,10 @@ ClassRange      : CHARLIT { Set.singleton $1 }
                 | CHARLIT DASH CHARLIT { Set.ofList [$1..$3] }
 ;
 
-Nfa     : { Set.empty }
-        | STATE ARROW Regex STATE Nfa { Set.union (Set.singleton($1, $3, $4)) $5 }
+Nfa     : { [] }
+        | STATE ARROW SEMICOLON Nfa { ($1, Epsilon, None) :: $4 }
+        | STATE ARROW ExtendedRegex SEMICOLON Nfa { ($1, $3, None) :: $5 }
+        | STATE ARROW ExtendedRegex STATE SEMICOLON Nfa { ($1, $3, Some $4) :: $6 }
 ;
 
 %%

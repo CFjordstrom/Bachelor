@@ -19,11 +19,11 @@
     <Compile Include="AbSyn.fs" />
     <Compile Include="Parser.fs" />
     <Compile Include="Lexer.fs" />
-    <Compile Include="PrettyPrinter.fs" />
-    <Compile Include="RegexToNFA.fs" />
     <Compile Include="NFAToDFA.fs" />
     <Compile Include="DFAToNFA.fs" />
     <Compile Include="MinimiseDFA.fs" />
+    <Compile Include="PrettyPrinter.fs" />
+    <Compile Include="RegexToNFA.fs" />
     <Compile Include="XFAToRegex.fs" />
     
     <Compile Include="Main.fsx" />
