@@ -59,7 +59,7 @@ and ppRep (rep : ExtendedRegex) : string =
 and ppAtom (atom : ExtendedRegex) : string  =
     match atom with
     | Class c -> ppClass c
-    | Transitions ts ->
+    (*| Transitions ts ->
         "{" + List.fold (fun acc t ->
             let str = 
                 match t with
@@ -68,7 +68,7 @@ and ppAtom (atom : ExtendedRegex) : string  =
                 | (startState, symbol, None) ->
                     "#" + startState + " -> " + ppRegex symbol
             acc + str + ";"
-        ) "" ts + "}"
+        ) "" ts + "}"*)
     | r -> "(" + ppRegex r + ")"
 
 let transitionToString (s1: State) (t : Transition) =

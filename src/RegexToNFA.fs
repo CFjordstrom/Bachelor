@@ -27,69 +27,31 @@ let nfaUnion (map1 : NFAMap) (map2 : NFAMap) : NFAMap =
         ) acc
     ) longer shorter
 
-(* bind a state represented as a string to a new State*)
-let bind (stateStr : string) (symTab : StateMap) : StateMap =
-    Map.change stateStr (fun s ->
-        match s with
-        | Some state -> Some state
-        | None -> Some (nextID())
-    ) symTab
-
-(* bind a state represented as a string to an existing State *)
-let bindInt (stateStr : string) (state : State) (symTab : StateMap) : StateMap =
-    Map.change stateStr (fun s ->
-        match s with
-        | Some existing -> Some existing
-        | None -> Some state
-    ) symTab
-
 (* set of all printable ascii chars *)
 let ascii = Set.ofList <| List.map char [0x20u..0x7Eu]
 
-let rec transitionsToNFA (transitions : Transitions) (symTab : StateMap) (nfaMap : NFAMap) (alphabet : Alphabet) (endState : State): NFAMap * Alphabet * StateMap =
-    match transitions with
-    (* if no more transitions then stop *)
-    | [] -> (nfaMap, alphabet, symTab)
-    | (fromStateString, symbol, None) :: ts ->
-        (* check if states are already bound, if not bind them *)
-        let symTab' = bind fromStateString symTab
+(* given a regex and a nonterminal, the function returns true if there is a nonterminal in the tail position that is identical to the given nonterminal *)
+let rec isRecursive (nt : string) (regex : ExtendedRegex) : bool =
+    match regex with
+    | Seq(Nonterminal s, Epsilon) when s = nt -> true
+    | Seq(r1, r2) -> isRecursive nt r2
+    | Union(r1, r2) -> isRecursive nt r1 || isRecursive nt r2
+    | _ -> false
 
-        (* create NFA representing the transition regex *)
-        let fromInt = Map.find fromStateString symTab'
-        let (start, map, alphabet') = regexToNFARec symbol symTab' endState
-        let nfaMap' = 
-            Map.add fromInt (Set.ofList [None, start], false)
-            <| mapDisjointUnion nfaMap map
+(* removes tail nonterminal from a regex *)
+let rec removeTailNonterminal (regex : ExtendedRegex) : ExtendedRegex =
+    match regex with
+    | Seq(Nonterminal s, Epsilon) -> Epsilon
+    | Seq(r1, r2) -> Seq(r1, removeTailNonterminal r2)
+    | Union(r1, r2) -> Union(removeTailNonterminal r1, removeTailNonterminal r2)
+    | _ -> regex
 
-        transitionsToNFA ts symTab' nfaMap' (Set.union alphabet alphabet') endState
-
-    | (fromStateString, symbol, Some toStateString) :: ts ->
-        (* check if states are already bound, if not bind them *)
-        let symTabFrom = bind fromStateString symTab
-        let symTabTo = bind toStateString symTab
-        let symTab' = mapDisjointUnion symTabFrom symTabTo
-
-        (* create NFA representing the transition regex *)
-        let fromInt = Map.find fromStateString symTab'
-        let toInt = Map.find toStateString symTab'
-        let (start, map, alphabet') = regexToNFARec symbol symTab' toInt
-
-        let nfaMap' =
-            Map.change fromInt (fun x ->
-                match x with
-                | Some (ts, isAccepting) -> Some (Set.add (None, start) ts, isAccepting)
-                | None -> Some (Set.ofList [None, start], false))
-            <| nfaUnion nfaMap map
-        
-
-        transitionsToNFA ts symTab' nfaMap' (Set.union alphabet alphabet') endState
-
-and regexToNFARec (regex : ExtendedRegex) (symTab : StateMap) (endState : State) : NFA =
+let rec regexToNFARec (regex : ExtendedRegex) (ts : Transitions) (endState : State) : NFA =
     match regex with
     | Union (r1, r2) ->
         let startingState = nextID()
-        let (sStart, sMap, sAlphabet) = regexToNFARec r1 symTab endState
-        let (tStart, tMap, tAlphabet) = regexToNFARec r2 symTab endState
+        let (sStart, sMap, sAlphabet) = regexToNFARec r1 ts endState
+        let (tStart, tMap, tAlphabet) = regexToNFARec r2 ts endState
 
         (* combine the two maps into one *)
         let combinedMap = mapDisjointUnion sMap tMap
@@ -99,8 +61,8 @@ and regexToNFARec (regex : ExtendedRegex) (symTab : StateMap) (endState : State)
         Set.union sAlphabet tAlphabet)
 
     | Seq (r1, r2) ->
-        let (tStart, tMap, tAlphabet) = regexToNFARec r2 symTab endState
-        let (sStart, sMap, sAlphabet) = regexToNFARec r1 symTab tStart
+        let (tStart, tMap, tAlphabet) = regexToNFARec r2 ts endState
+        let (sStart, sMap, sAlphabet) = regexToNFARec r1 ts tStart
         (sStart,
         mapDisjointUnion sMap tMap,
         Set.union sAlphabet tAlphabet)
@@ -114,30 +76,55 @@ and regexToNFARec (regex : ExtendedRegex) (symTab : StateMap) (endState : State)
             (* create a map containing these transitions *)
             let map = Map.ofList [(startingState, (transitions, false))]
             (startingState, map, content)
-        | Complement content -> regexToNFARec (Class(ClassContent(Set.difference ascii content))) symTab endState
+        | Complement content -> regexToNFARec (Class(ClassContent(Set.difference ascii content))) ts endState
 
     | ZeroOrMore r ->
         let state = nextID()
-        let (start, map, alphabet) = regexToNFARec r symTab state
+        let (start, map, alphabet) = regexToNFARec r ts state
         (state,
         Map.add state ((Set.ofList [(None, endState); (None, start)]), false) map,
         alphabet)
-    
-    | Transitions [] -> (endState, Map.empty, Set.empty)
-    
-    | Transitions ((startString, symbol, endString) :: ts) ->
-        let distinctTransitions = List.distinct ((startString, symbol, endString) :: ts)
-        let symTab' = bind startString symTab
-        let (nfaMap, alphabet, symTab'') = transitionsToNFA distinctTransitions symTab' Map.empty Set.empty endState
-        let start = Map.find startString symTab''
-        (start, nfaMap, alphabet)
+
+    | Nonterminal s ->
+        let productions = List.map (fun (nt, re) -> re) <| List.filter (fun (nt, re) -> nt = s) ts
+        let isRecursive' = isRecursive s
+        let startingState = nextID()
+
+        (* if the nonterminal has a recursive production *)
+        if List.exists isRecursive' productions then
+            let nfaList = 
+                List.map (fun p ->
+                    if isRecursive' p then
+                        let re = ZeroOrMore (removeTailNonterminal p)
+                        regexToNFARec re ts startingState
+                    else
+                        regexToNFARec p ts endState
+                ) productions
+
+            let (combinedMap, combinedAlphabet) = 
+                List.fold (fun (accMap, accAlphabet) (start, map, alphabet) ->
+                    (nfaUnion accMap map, Set.union accAlphabet alphabet)
+                ) (Map.empty, Set.empty) nfaList
+
+            let transitionsToNFAs = 
+                List.fold (fun acc (start, map, alphabet) ->
+                    Set.union acc (Set.ofList [None, start])
+                ) Set.empty nfaList
+
+            let mapToNFAs = Map.ofList ([(startingState, (transitionsToNFAs, false))])
+
+            (startingState,
+            nfaUnion combinedMap mapToNFAs,
+            combinedAlphabet)
+        else
+            let unionProductions = List.fold (fun acc p -> Union(acc, p)) (List.head productions) (List.tail productions)
+            regexToNFARec unionProductions ts endState
 
     | Epsilon -> (endState, Map.empty, Set.empty)
 
-let regexToNFA regex = 
+let regexToNFA ts regex = 
     let endState = nextID()
-    let symTab = Map.empty
-    let (start, map, alphabet) = regexToNFARec regex symTab endState
+    let (start, map, alphabet) = regexToNFARec regex ts endState
     (start,
     Map.add endState (Set.empty, true) map,
     alphabet)

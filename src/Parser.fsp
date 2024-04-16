@@ -27,14 +27,14 @@ let parse_error_rich =
 %token LCURLY RCURLY
 %token LBRACKET RBRACKET CARET DOT
 %token DASH
-%token <string> STATE 
+%token <string> NONTERMINAL
 %token ARROW SEMICOLON
 %token EOF
 
 %left PIPE
 
 %start Start
-%type <AbSyn.ExtendedRegex> Start
+%type <AbSyn.RegLang> Start
 %type <AbSyn.ExtendedRegex> ExtendedRegex
 %type <AbSyn.ExtendedRegex> Seq
 %type <AbSyn.ExtendedRegex> Rep
@@ -44,9 +44,11 @@ let parse_error_rich =
 %type <AbSyn.ClassContent> ClassContent
 %type <AbSyn.ClassContent> ClassRange
 %type <AbSyn.Transitions> Nfa
+%type <AbSyn.Transitions> Transitions
+%type <string> Nonterminal
 
 %%
-Start   : SLASH ExtendedRegex SLASH EOF { $2 }
+Start   :  Nfa SLASH ExtendedRegex SLASH EOF { ($1, $3) }
 ;
 
 ExtendedRegex   : Seq { $1 }
@@ -66,7 +68,7 @@ Rep     : Atom { $1 }
 Atom    : Char { $1 }
         | LPAR ExtendedRegex RPAR { $2 }
         | Class { Class($1) }
-        | LCURLY Nfa RCURLY { Transitions($2) }
+        | Nonterminal { Nonterminal($1) }
 ;
 
 Char    : CHARLIT { Class(ClassContent(Set.singleton $1)) }
@@ -86,9 +88,12 @@ ClassRange      : CHARLIT { Set.singleton $1 }
 ;
 
 Nfa     : { [] }
-        | STATE ARROW SEMICOLON Nfa { ($1, Epsilon, None) :: $4 }
-        | STATE ARROW ExtendedRegex SEMICOLON Nfa { ($1, $3, None) :: $5 }
-        | STATE ARROW ExtendedRegex STATE SEMICOLON Nfa { ($1, $3, Some $4) :: $6 }
+        | LCURLY Transitions RCURLY { $2 }
 ;
+
+Transitions     : { [] }
+                | Nonterminal ARROW ExtendedRegex SEMICOLON Transitions { ($1, $3) :: $5 }
+
+Nonterminal     : NONTERMINAL {$1}
 
 %%

@@ -1,10 +1,11 @@
 module AbSyn
 (*
 
-Start    -> '/' RegLang '/'
+Start    -> '/' NFA Regex '/'
 
-RegLang  -> Seq
+Regex  -> Seq
         | Regex '|' Regex
+        | Regex '&' Regex
 
 Seq    -> Epsilon
         | Rep Seq
@@ -17,10 +18,10 @@ Rep    -> Atom
 Atom   -> Char
         | '(' Regex ')'
         | Class
-        | '{' NFA '}'
+        | Nonterminal
 
-Char   -> char not in {/|*+?{}()\[]-.}
-        | '\' char in {/|*+?{}()\[]-.}
+Char   -> char not in {/|*+?{}()\[]-.#;}
+        | '\' *any non-alphanumerical character*
 
 Class  -> '.'
         | '[' ClassContent ']'
@@ -33,11 +34,12 @@ ClassRange  -> any char
             | any char '-' any char
 
 NFA    -> epsilon
-        | '#' State '->' Regex '#' State ';' NFA
-        | '#' State '->' Regex ';' NFA
-        | '#' State '->' ';' NFA
+       -> { Transitions }
 
-State   -> *any alphanumerical chars*
+Transitions    -> Nonterminal '->' Regex ';' NFA
+                | epsilon
+
+Nonterminal   -> '#' *any alphanumerical character*
 
 *)
 
@@ -70,16 +72,20 @@ type WorkList = Map<State, (Set<State> * bool)>
 
 //type DFARegexTransitions = State * Map<State, (Map<Regex, State> * bool)> * Set<char>
 
-type Transitions = (string * ExtendedRegex * string option) list
+type Transitions = (string * ExtendedRegex) list
 
 and ExtendedRegex =
     Union of ExtendedRegex * ExtendedRegex
   | Seq of ExtendedRegex * ExtendedRegex
   | Class of Class
   | ZeroOrMore of ExtendedRegex
-  | Transitions of Transitions
+  | Nonterminal of string
+  //| REComplement of ExtendedRegex
+  //| Intersection of ExtendedRegex * ExtendedRegex
   | Epsilon
 
 type GNFA = ExtendedRegex option[,]
 
-type StateMap = Map<string, State>
+type NTab = Map<string, NFA>
+
+type RegLang = Transitions * ExtendedRegex

@@ -52,9 +52,9 @@ rule Token = parse
     | '#' ['a'-'z' 'A'-'Z' '0'-'9']+
                             { 
                                 let str = Encoding.UTF8.GetString(lexbuf.Lexeme)
-                                Parser.STATE (str.[1..(String.length str - 1)])
+                                Parser.NONTERMINAL (str.[1..(String.length str - 1)])
                             }
-    | [^ '/' '|' '*' '+' '?' '{' '}' '(' ')' '[' ']' '-' '.' '\\']
+    | [^ '/' '|' '*' '+' '?' '{' '}' '(' ')' '[' ']' '-' '.' '\\' '#']
                             { 
                                 let str = Encoding.UTF8.GetString(lexbuf.Lexeme)
                                 Parser.CHARLIT (str.[0])

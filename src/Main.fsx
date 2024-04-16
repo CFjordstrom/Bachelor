@@ -8,12 +8,13 @@ open RegexToNFA
 open NFAToDFA
 open MinimiseDFA
 open XFAToRegex
+open CheckTransitions
 
-let parse (s : string) : ExtendedRegex =
+let parse (s : string) : RegLang =
     Parser.Start Lexer.Token
     <| LexBuffer<_>.FromBytes (Encoding.UTF8.GetBytes s)
 
-let parseRegLang (input : string) : ExtendedRegex =
+let parseRegLang (input : string) : RegLang =
     let text =
         if System.IO.File.Exists input then
             let inStream = File.OpenText input
@@ -29,35 +30,27 @@ let parseRegLang (input : string) : ExtendedRegex =
         | Lexer.LexicalError (info,(line, col)) ->
             printfn "%s at line %d, position %d\n" info line col
             System.Environment.Exit 1
-            Epsilon
+            ([], Epsilon)
         | err -> 
-            printfn "%A" err
+            printfn "%s" err.Message
             System.Environment.Exit 1
-            Epsilon
+            ([], Epsilon)
     else
         failwith "invalid input"
 
 [<EntryPoint>]
 let main (args : string[]) : int =
-    match args.Length with
-    | 1 ->
-        let regex = parseRegLang args.[0]
-        //printfn "Regex Syntax tree:\n%A\n" regex
-        printfn "Regex:\n%s\n" (ppRegex regex)
-        let nfa = regexToNFA regex
-        let (start, map, alphabet) = nfa
-        //printfn "NFA:\n%A\n" nfa
-        printfn "NFA:\n%s\n" (ppNFA nfa)
-        
-        let dfa = nfaToDFA nfa
-        //printfn "DFA:\n%A\n" dfa
-        printfn "DFA:\n%s\n" (ppDFA dfa)
-        
-        //let minimisedDFA = minimiseDFA dfa
-        //printfn "Minimised DFA:\n%s\n" (ppDFA minimisedDFA)
-        (*
-        let backToRegex = xfaToRegex minimisedDFA
-        printfn "Regex Syntax Tree after converting back from minimised DFA:\n%A\n" backToRegex
-        printfn "Regex after converting back from minimised DFA:\n%s\n" (ppRegex backToRegex)*)
-        0
-    | _ -> printfn "Usage: dotnet run <filename or regex>"; 1
+    match args with
+    | [|flag; input|] ->
+        let (transitions, regex) = parseRegLang input
+        if checkTransitions transitions then
+            let nfa = regexToNFA transitions regex
+            printfn "%s" (ppNFA nfa)
+            let dfa = minimiseDFA <| nfaToDFA nfa
+            printfn "%s" (ppDFA dfa)
+            let re = xfaToRegex dfa
+            printfn "%s" (ppRegex re)
+        else
+            printfn "Illegal input"
+    | _ -> printfn "Usage: dotnet run <options> <filename or regex>"
+    0
