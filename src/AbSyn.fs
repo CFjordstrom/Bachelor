@@ -14,6 +14,7 @@ Rep    -> Atom
         | Atom '*'
         | Atom '+'
         | Atom '?'
+        | '!' Atom
 
 Atom   -> Char
         | '(' Regex ')'
@@ -65,7 +66,7 @@ type NFAMap = Map<State, (Set<Transition> * bool)>
 type Alphabet = Set<char>
 type NFA = State * NFAMap * Alphabet
 
-type DFA = State * Map<State, (Map<char, State> * bool)> * Set<char>
+type DFA<'State when 'State : comparison> = 'State * Map<'State, (Map<char, 'State> * bool)> * Set<char>
 
 (* dfa state maps to a set of nfa states, a bool indicating if the dfa state is marked or not, and the transitions that belong to that dfa state *)
 type WorkList = Map<State, (Set<State> * bool)>
@@ -80,8 +81,8 @@ and ExtendedRegex =
   | Class of Class
   | ZeroOrMore of ExtendedRegex
   | Nonterminal of string
-  //| REComplement of ExtendedRegex
-  //| Intersection of ExtendedRegex * ExtendedRegex
+  | REComplement of ExtendedRegex
+  | Intersection of ExtendedRegex * ExtendedRegex
   | Epsilon
 
 type GNFA = ExtendedRegex option[,]

@@ -1,6 +1,10 @@
 module RegexToNFA
 
 open AbSyn
+open NFAToDFA
+open MinimiseDFA
+open DFAToNFA
+open PrettyPrinter
 
 let mutable counter = 1
 let nextID () =
@@ -36,6 +40,7 @@ let rec isRecursive (nt : string) (regex : ExtendedRegex) : bool =
     | Seq(Nonterminal s, Epsilon) when s = nt -> true
     | Seq(r1, r2) -> isRecursive nt r2
     | Union(r1, r2) -> isRecursive nt r1 || isRecursive nt r2
+    | Nonterminal s when s = nt -> true
     | _ -> false
 
 (* removes tail nonterminal from a regex *)
@@ -44,7 +49,48 @@ let rec removeTailNonterminal (regex : ExtendedRegex) : ExtendedRegex =
     | Seq(Nonterminal s, Epsilon) -> Epsilon
     | Seq(r1, r2) -> Seq(r1, removeTailNonterminal r2)
     | Union(r1, r2) -> Union(removeTailNonterminal r1, removeTailNonterminal r2)
+    | Nonterminal s -> Epsilon
     | _ -> regex
+
+(* constructs the product of two DFAs *)
+(* currently sets accepting flags for intersection, maybe add so it also can set for union? *)
+let rec constructProduct (dfa1 : DFA<State>) (dfa2 : DFA<State>) : DFA<State * State> =
+    let (start1, map1, alphabet) = makeMoveTotal <| dfa1
+    let (start2, map2, alphabet) = makeMoveTotal <| dfa2
+
+    let keys1 = Map.keys map1
+    let keys2 = Map.keys map2
+    let states = Seq.collect (fun x -> x) <| Seq.map (fun x -> Seq.map (fun y -> (x, y)) keys2) keys1
+    
+    let productMap =
+        (* for every pair for states *)
+        Seq.fold (fun acc (s1, s2) ->
+            (* get transition map and accepting flag of each state *)
+            let (t1, isAccepting1) = Map.find s1 map1
+            let (t2, isAccepting2) = Map.find s2 map2
+
+            let transitionsFromPair =
+                (* for each symbol in the alphabet *)
+                Set.fold (fun acc' symbol ->
+                    (* find destinations of transitions on current symbol *)
+                    let s1To = Map.find symbol t1
+                    let s2To = Map.find symbol t2
+
+                    (* add transition on this symbol to the pair *)
+                    Map.add symbol (s1To, s2To) acc'
+                ) Map.empty alphabet
+
+            Map.add (s1, s2) (transitionsFromPair, isAccepting1 && isAccepting2) acc
+        ) Map.empty states
+
+    ((start1, start2), productMap, alphabet)
+
+let addAccepting (endState : State) (nfa : NFAMap) : NFAMap =
+    Map.change endState (fun x ->
+        match x with
+        | Some (ts, isAccepting) -> Some (ts, true)
+        | None -> Some (Set.empty, true)
+    ) nfa
 
 let rec regexToNFARec (regex : ExtendedRegex) (ts : Transitions) (endState : State) : NFA =
     match regex with
@@ -120,11 +166,72 @@ let rec regexToNFARec (regex : ExtendedRegex) (ts : Transitions) (endState : Sta
             let unionProductions = List.fold (fun acc p -> Union(acc, p)) (List.head productions) (List.tail productions)
             regexToNFARec unionProductions ts endState
 
+    | REComplement r ->
+        let (nfaStart, nfaMap, alphabet) = regexToNFARec r ts endState
+        let mapWithAccepting = addAccepting endState nfaMap
+        let dfa = nfaToDFA (nfaStart, mapWithAccepting, alphabet)
+        let (totalStart, totalMap, alphabet) = makeMoveTotal dfa
+
+        (* flip accepting flag *)
+        let mapAcceptingFlipped = 
+            Map.map (fun state (charMap, isAccepting) ->
+                (charMap, not isAccepting)
+            ) totalMap
+
+        dfaToNFA (totalStart, mapAcceptingFlipped, alphabet)
+
+    | Intersection (r1, r2) ->
+        let (nfaStart1, nfaMap1, alphabet1) = regexToNFARec r1 ts endState
+        let (nfaStart2, nfaMap2, alphabet2) = regexToNFARec r2 ts endState
+
+        (* if thw two expressions have the same alphabet then continue *)
+        if alphabet1 = alphabet2 then
+            (* construct DFA for r1 *)
+            let nfaMap1' = addAccepting endState nfaMap1
+            let dfa1 = nfaToDFA (nfaStart1, nfaMap1', alphabet1)
+
+            (* construct DFA for r2 *)
+            let nfaMap2' = addAccepting endState nfaMap2
+            let dfa2 = nfaToDFA (nfaStart2, nfaMap2', alphabet2)
+
+            (* if thw two expressions have the same alphabet *)
+            let (productStart, productMap, alphabet) = constructProduct dfa1 dfa2
+            
+            (* map each pair of product states to a new NFA state *)
+            let productStateToNFAStateMap =
+                Seq.fold (fun acc s ->
+                    Map.add s (nextID()) acc
+                ) Map.empty (Map.keys productMap)
+
+            (* convert product to NFA *)
+            let nfaMap =
+                (* for every state *)
+                Map.fold (fun acc statePair (charMap, isAccepting) ->
+                    (* get the nfa state for the pair *)
+                    let state = Map.find statePair productStateToNFAStateMap
+                    (* convert map to set of transitions *)
+                    let transitions =
+                        Map.fold (fun acc' symbol pairTo ->
+                            let nfaTo = Map.find pairTo productStateToNFAStateMap
+                            Set.add (Some symbol, nfaTo) acc'
+                        ) Set.empty charMap
+                    
+                    Map.add state (transitions, isAccepting) acc
+                ) Map.empty productMap
+
+            (Map.find productStart productStateToNFAStateMap, nfaMap, alphabet)
+        else
+            failwith "When finding the intersection, the alphabets must be identical"
+    
     | Epsilon -> (endState, Map.empty, Set.empty)
 
 let regexToNFA ts regex = 
     let endState = nextID()
     let (start, map, alphabet) = regexToNFARec regex ts endState
     (start,
-    Map.add endState (Set.empty, true) map,
+    Map.change endState (fun x ->
+        match x with
+        | Some (ts, isAccepting) -> Some (ts, isAccepting)
+        | None -> Some (Set.empty, true)
+    ) map,
     alphabet)

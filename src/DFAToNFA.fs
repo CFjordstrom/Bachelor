@@ -2,7 +2,7 @@ module DFAToNFA
 
 open AbSyn
 
-let dfaToNFA (dfa : DFA) : NFA =
+let dfaToNFA (dfa : DFA<State>) : NFA =
     let (start, dfaMap, alphabet) = dfa
     let nfaMap =
         Map.map (fun start (symbolToStateMap, accepting) ->

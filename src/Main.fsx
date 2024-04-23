@@ -8,7 +8,6 @@ open RegexToNFA
 open NFAToDFA
 open MinimiseDFA
 open XFAToRegex
-open CheckTransitions
 
 let parse (s : string) : RegLang =
     Parser.Start Lexer.Token
@@ -41,16 +40,22 @@ let parseRegLang (input : string) : RegLang =
 [<EntryPoint>]
 let main (args : string[]) : int =
     match args with
-    | [|flag; input|] ->
+    | [|"-regex"; input|] ->
         let (transitions, regex) = parseRegLang input
-        if checkTransitions transitions then
-            let nfa = regexToNFA transitions regex
-            printfn "%s" (ppNFA nfa)
-            let dfa = minimiseDFA <| nfaToDFA nfa
-            printfn "%s" (ppDFA dfa)
-            let re = xfaToRegex dfa
-            printfn "%s" (ppRegex re)
-        else
-            printfn "Illegal input"
-    | _ -> printfn "Usage: dotnet run <options> <filename or regex>"
+        printfn "%s" (ppRegex << xfaToRegex << minimiseDFA << nfaToDFA <| regexToNFA transitions regex)
+    | [|"-mindfa"; input|] ->
+        let (transitions, regex) = parseRegLang input
+        printfn "%s" (ppDFA << minimiseDFA << nfaToDFA <| regexToNFA transitions regex)
+    | [|"-dfa"; input|] ->
+        let (transitions, regex) = parseRegLang input
+        printfn "%s" (ppDFA << nfaToDFA <| regexToNFA transitions regex)
+    | [|"-nfa"; input|] ->
+        let (transitions, regex) = parseRegLang input
+        printfn "%s" (ppNFA <| regexToNFA transitions regex)
+    | _ -> printfn "Usage: dotnet run <options> <filename or regex>\n
+Possible options are:
+    -regex
+    -mindfa
+    -dfa
+    -nfa"
     0

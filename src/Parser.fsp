@@ -20,8 +20,8 @@ let parse_error_rich =
 
 //%token <int> NUMREPS
 %token SLASH
-%token PIPE
-%token STAR PLUS QMARK
+%token PIPE AMPERSAND
+%token STAR PLUS QMARK EMARK
 %token LPAR RPAR
 %token <char> CHARLIT
 %token LCURLY RCURLY
@@ -31,7 +31,7 @@ let parse_error_rich =
 %token ARROW SEMICOLON
 %token EOF
 
-%left PIPE
+%left PIPE AMPERSAND
 
 %start Start
 %type <AbSyn.RegLang> Start
@@ -53,6 +53,7 @@ Start   :  Nfa SLASH ExtendedRegex SLASH EOF { ($1, $3) }
 
 ExtendedRegex   : Seq { $1 }
                 | ExtendedRegex PIPE ExtendedRegex { Union($1, $3) }
+                | ExtendedRegex AMPERSAND ExtendedRegex { Intersection($1, $3) }
 ;
 
 Seq     : { Epsilon }
@@ -63,6 +64,7 @@ Rep     : Atom { $1 }
         | Atom STAR { ZeroOrMore($1) }
         | Atom PLUS { Seq($1, Seq(ZeroOrMore($1), Epsilon)) }
         | Atom QMARK { Union($1, Epsilon) }
+        | EMARK Atom { REComplement($2) }
 ;
 
 Atom    : Char { $1 }

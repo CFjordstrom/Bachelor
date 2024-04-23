@@ -9,8 +9,9 @@ let nextID () =
     counter <- counter + 1
     (counter - 1)
 
-let makeMoveTotal (dfa : DFA) : DFA =
+let makeMoveTotal (dfa : DFA<State>) : DFA<State> =
     let (dfaStart, dfaMap, alphabet) = dfa
+
     let deadState = -1
     let deadStateTransitions = Set.fold (fun acc symbol -> Map.add symbol deadState acc) Map.empty alphabet
     
@@ -33,14 +34,9 @@ let makeMoveTotal (dfa : DFA) : DFA =
     totalWithDeadState, 
     alphabet)
 
-(* takes a group, the worklist and the dfa and returns  
-let generateTransitionTable (group : State) (workList : WorkList) (dfa : DFA) : (Map<State, Map<char, State>>) =
-    let 
-    true
-*)
 (* takes a worklist consisting of two groups: the accepting and rejecting states, the dfa and an empty map
    and returns the minimised dfa *)
-let rec constructMinimalDFA (workList : WorkList) (dfa : DFA) : DFA =
+let rec constructMinimalDFA (workList : WorkList) (dfa : DFA<_>) : DFA<_> =
     (*
     1. stop if all groups are singleton or marked
     2. pick unmarked and non-singleton group
@@ -144,7 +140,7 @@ let rec constructMinimalDFA (workList : WorkList) (dfa : DFA) : DFA =
 
             constructMinimalDFA newWorkList dfa
 
-let minimiseDFA (dfa : DFA) : DFA =
+let minimiseDFA (dfa : DFA<_>) : DFA<_> =
     let (dfaStart, dfaMap, alphabet) = makeMoveTotal dfa
     (* split dfa into accepting and rejecting states *)
     let (accepting, rejecting) = 

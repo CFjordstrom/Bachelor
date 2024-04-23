@@ -41,6 +41,7 @@ let ppClass (c : Class) : string =
 let rec ppRegex (regex : ExtendedRegex) : string =
     match regex with
     | Union(r, seq) -> ppRegex r + "|" + ppSeq seq
+    | Intersection(r, seq) -> ppRegex r + "&" + ppSeq seq
     | s -> ppSeq s
 
 and ppSeq (seq : ExtendedRegex) : string =
@@ -54,21 +55,12 @@ and ppRep (rep : ExtendedRegex) : string =
     | ZeroOrMore atom -> ppAtom atom + "*"
     | Seq(atom1, Seq(ZeroOrMore(atom2), Epsilon)) when atom1 = atom2 -> ppAtom atom1 + "+"
     | Union(atom, Epsilon) -> ppAtom atom + "?"
+    | REComplement atom -> "!" + ppAtom atom
     | atom -> ppAtom atom
 
 and ppAtom (atom : ExtendedRegex) : string  =
     match atom with
     | Class c -> ppClass c
-    (*| Transitions ts ->
-        "{" + List.fold (fun acc t ->
-            let str = 
-                match t with
-                | (startState, symbol, Some endState) ->
-                    "#" + startState + " -> " + ppRegex symbol + " #" + endState
-                | (startState, symbol, None) ->
-                    "#" + startState + " -> " + ppRegex symbol
-            acc + str + ";"
-        ) "" ts + "}"*)
     | r -> "(" + ppRegex r + ")"
 
 let transitionToString (s1: State) (t : Transition) =
@@ -97,7 +89,7 @@ let dfaTransitionsToString (s1 : State) (ts : Map<char, State> * bool) : string 
     else
         res
 
-let rec ppDFA (dfa : DFA) : string =
+let rec ppDFA (dfa : DFA<_>) : string =
     let (start, map, alphabet) = dfa
     ("Starting state: " + string start + "\n"
     + Map.fold (fun acc key value -> acc + dfaTransitionsToString key value) "" map

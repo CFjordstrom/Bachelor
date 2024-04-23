@@ -110,7 +110,7 @@ let addAcceptingOrRejecting (transitionMap : Map<State, (Map<char, State>)>) (wo
         let accepting = isAccepting nfaStates nfa
         (transitions, accepting)) transitionMap
 
-let nfaToDFA (nfa : NFA) : DFA =
+let nfaToDFA (nfa : NFA) : DFA<_> =
     let (start, map, alphabet) = nfa
 
     (* set counter to 1 for renumbering - don't like doing this, but don't know what else to do *)

@@ -3,7 +3,6 @@ module XFAToRegex
 open AbSyn
 open DFAToNFA
 
-
 let nfaToGNFAMap (nfa : NFA) : GNFA =
     let (nfaStart, nfaMap, alphabet) = nfa
     let keys = Map.keys nfaMap
@@ -106,7 +105,7 @@ let xfaToRegex (automaton : obj) : ExtendedRegex =
     let input = 
         match automaton with
         | :? NFA as nfa -> nfa
-        | :? DFA as dfa -> dfaToNFA dfa
+        | :? DFA<int> as dfa -> dfaToNFA dfa
         | _ -> failwith "invalid argument type to xfaToRegex"
     
     let gnfa = nfaToGNFAMap input

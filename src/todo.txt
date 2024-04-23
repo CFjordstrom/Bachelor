@@ -1,0 +1,11 @@
+Required:
+    - Check if grammar is legal
+    - Proper error messages
+    - Some way to run a DFA
+    - Testing
+    - Report
+
+Potential:
+    - Brzozowski derivatives
+    - Left/right quotients
+    - Reversal
