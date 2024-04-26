@@ -1,0 +1,33 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net7.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="FsLexYacc" Version="10.2.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <FsYacc Include="Parser.fsp">
+      <OtherFlags>-v --module Parser</OtherFlags>
+    </FsYacc>
+    <FsLex Include="Lexer.fsl">
+      <OtherFlags></OtherFlags>
+    </FsLex>
+    <Compile Include="AbSyn.fs" />
+    <Compile Include="Parser.fs" />
+    <Compile Include="Lexer.fs" />
+    <Compile Include="NFAToDFA.fs" />
+    <Compile Include="DFAToNFA.fs" />
+    <Compile Include="MinimiseDFA.fs" />
+    <Compile Include="PrettyPrinter.fs" />
+    <Compile Include="RegexToNFA.fs" />
+    <Compile Include="XFAToRegex.fs" />
+    <Compile Include="CheckGrammar.fs" />
+    
+    <Compile Include="Main.fsx" />
+  </ItemGroup>
+
+</Project>
