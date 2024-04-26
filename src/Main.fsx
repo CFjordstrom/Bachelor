@@ -41,17 +41,17 @@ let parseRegLang (input : string) : RegLang =
 let main (args : string[]) : int =
     match args with
     | [|"-regex"; input|] ->
-        let (transitions, regex) = parseRegLang input
-        printfn "%s" (ppRegex << xfaToRegex << minimiseDFA << nfaToDFA <| regexToNFA transitions regex)
+        let (grammar, regex) = parseRegLang input
+        printfn "%s" (ppRegex << xfaToRegex << minimiseDFA << nfaToDFA <| regexToNFA grammar regex)
     | [|"-mindfa"; input|] ->
-        let (transitions, regex) = parseRegLang input
-        printfn "%s" (ppDFA << minimiseDFA << nfaToDFA <| regexToNFA transitions regex)
+        let (grammar, regex) = parseRegLang input
+        printfn "%s" (ppDFA << minimiseDFA << nfaToDFA <| regexToNFA grammar regex)
     | [|"-dfa"; input|] ->
-        let (transitions, regex) = parseRegLang input
-        printfn "%s" (ppDFA << nfaToDFA <| regexToNFA transitions regex)
+        let (grammar, regex) = parseRegLang input
+        printfn "%s" (ppDFA << nfaToDFA <| regexToNFA grammar regex)
     | [|"-nfa"; input|] ->
-        let (transitions, regex) = parseRegLang input
-        printfn "%s" (ppNFA <| regexToNFA transitions regex)
+        let (grammar, regex) = parseRegLang input
+        printfn "%s" (ppNFA <| regexToNFA grammar regex)
     | _ -> printfn "Usage: dotnet run <options> <filename or regex>\n
 Possible options are:
     -regex

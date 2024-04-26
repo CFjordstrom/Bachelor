@@ -43,8 +43,8 @@ let parse_error_rich =
 %type <AbSyn.Class> Class
 %type <AbSyn.ClassContent> ClassContent
 %type <AbSyn.ClassContent> ClassRange
-%type <AbSyn.Transitions> Nfa
-%type <AbSyn.Transitions> Transitions
+%type <AbSyn.Grammar> Nfa
+%type <AbSyn.Grammar> Grammar
 %type <string> Nonterminal
 
 %%
@@ -90,11 +90,11 @@ ClassRange      : CHARLIT { Set.singleton $1 }
 ;
 
 Nfa     : { [] }
-        | LCURLY Transitions RCURLY { $2 }
+        | LCURLY Grammar RCURLY { $2 }
 ;
 
-Transitions     : { [] }
-                | Nonterminal ARROW ExtendedRegex SEMICOLON Transitions { ($1, $3) :: $5 }
+Grammar     : { [] }
+                | Nonterminal ARROW ExtendedRegex SEMICOLON Grammar { ($1, $3) :: $5 }
 
 Nonterminal     : NONTERMINAL {$1}
 

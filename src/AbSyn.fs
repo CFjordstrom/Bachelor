@@ -73,7 +73,7 @@ type WorkList = Map<State, (Set<State> * bool)>
 
 //type DFARegexTransitions = State * Map<State, (Map<Regex, State> * bool)> * Set<char>
 
-type Transitions = (string * ExtendedRegex) list
+type Grammar = (string * ExtendedRegex) list
 
 and ExtendedRegex =
     Union of ExtendedRegex * ExtendedRegex
@@ -89,4 +89,4 @@ type GNFA = ExtendedRegex option[,]
 
 type NTab = Map<string, NFA>
 
-type RegLang = Transitions * ExtendedRegex
+type RegLang = Grammar * ExtendedRegex

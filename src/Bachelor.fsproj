@@ -25,7 +25,7 @@
     <Compile Include="PrettyPrinter.fs" />
     <Compile Include="RegexToNFA.fs" />
     <Compile Include="XFAToRegex.fs" />
-    <Compile Include="CheckTransitions.fs" />
+    <Compile Include="CheckGrammar.fs" />
     
     <Compile Include="Main.fsx" />
   </ItemGroup>

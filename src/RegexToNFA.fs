@@ -92,7 +92,7 @@ let addAccepting (endState : State) (nfa : NFAMap) : NFAMap =
         | None -> Some (Set.empty, true)
     ) nfa
 
-let rec regexToNFARec (regex : ExtendedRegex) (ts : Transitions) (endState : State) : NFA =
+let rec regexToNFARec (regex : ExtendedRegex) (ts : Grammar) (endState : State) : NFA =
     match regex with
     | Union (r1, r2) ->
         let startingState = nextID()
@@ -133,6 +133,10 @@ let rec regexToNFARec (regex : ExtendedRegex) (ts : Transitions) (endState : Sta
 
     | Nonterminal s ->
         let productions = List.map (fun (nt, re) -> re) <| List.filter (fun (nt, re) -> nt = s) ts
+        
+
+        (endState, Map.empty, Set.empty)
+        (*let productions = List.map (fun (nt, re) -> re) <| List.filter (fun (nt, re) -> nt = s) ts
         let isRecursive' = isRecursive s
         let startingState = nextID()
 
@@ -165,7 +169,7 @@ let rec regexToNFARec (regex : ExtendedRegex) (ts : Transitions) (endState : Sta
         else
             let unionProductions = List.fold (fun acc p -> Union(acc, p)) (List.head productions) (List.tail productions)
             regexToNFARec unionProductions ts endState
-
+        *)
     | REComplement r ->
         let (nfaStart, nfaMap, alphabet) = regexToNFARec r ts endState
         let mapWithAccepting = addAccepting endState nfaMap
