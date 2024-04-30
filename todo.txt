@@ -1,0 +1,9 @@
+Required:
+    - Proper error messages
+    - Testing - correctness of individual parts + roundtrip
+    - Report
+
+Potential:
+    - Brzozowski derivatives
+    - Left/right quotients
+    - Reversal
