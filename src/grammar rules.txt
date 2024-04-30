@@ -1,5 +1,0 @@
-1. All non-tail nonterminals must have defined already
-2. References to nonterminals with no productions are considered as errors
-3. Productions of the same non-terminal are grouped together
-4. The tail position of a union is the tail positions of the two subexpressions
-5. not sure about intersection and complement
