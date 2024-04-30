@@ -50,16 +50,6 @@ type Class =
     ClassContent of ClassContent
   | Complement of ClassContent
 
-//type Concat = Regex list
-
-(*
-type Regex =
-    Union of Regex * Regex
-  | Seq of Regex * Regex
-  | Class of Class
-  | ZeroOrMore of Regex
-  | Epsilon
-*)
 type State = int
 type Transition = char option * State
 type NFAMap = Map<State, (Set<Transition> * bool)>
@@ -70,8 +60,6 @@ type DFA<'State when 'State : comparison> = 'State * Map<'State, (Map<char, 'Sta
 
 (* dfa state maps to a set of nfa states, a bool indicating if the dfa state is marked or not, and the transitions that belong to that dfa state *)
 type WorkList = Map<State, (Set<State> * bool)>
-
-//type DFARegexTransitions = State * Map<State, (Map<Regex, State> * bool)> * Set<char>
 
 type Grammar = (string * ExtendedRegex) list
 
@@ -88,5 +76,8 @@ and ExtendedRegex =
 type GNFA = ExtendedRegex option[,]
 
 type NTab = Map<string, NFA>
+type XD =
+    Grammar of Grammar
+  | NTab of NTab
 
 type RegLang = Grammar * ExtendedRegex

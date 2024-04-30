@@ -89,7 +89,7 @@ let dfaTransitionsToString (s1 : State) (ts : Map<char, State> * bool) : string 
     else
         res
 
-let rec ppDFA (dfa : DFA<_>) : string =
+let rec ppDFA (dfa : DFA<State>) : string =
     let (start, map, alphabet) = dfa
     ("Starting state: " + string start + "\n"
     + Map.fold (fun acc key value -> acc + dfaTransitionsToString key value) "" map

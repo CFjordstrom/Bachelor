@@ -8,6 +8,7 @@ open RegexToNFA
 open NFAToDFA
 open MinimiseDFA
 open XFAToRegex
+open RunDFA
 
 let parse (s : string) : RegLang =
     Parser.Start Lexer.Token
@@ -52,6 +53,14 @@ let main (args : string[]) : int =
     | [|"-nfa"; input|] ->
         let (grammar, regex) = parseRegLang input
         printfn "%s" (ppNFA <| regexToNFA grammar regex)
+    | [|"-run"; reglang; input|] ->
+        let (grammar, regex) = parseRegLang reglang
+        let dfa = minimiseDFA << nfaToDFA <| regexToNFA grammar regex
+        if runDFA input dfa then
+            printfn "The given input string %s was accepted by the regular language represented by %s" input (ppRegex <| xfaToRegex dfa)
+        else
+            printfn "The given input string %s was rejected by the regular language represented by %s" input (ppRegex <| xfaToRegex dfa)
+
     | _ -> printfn "Usage: dotnet run <options> <filename or regex>\n
 Possible options are:
     -regex
