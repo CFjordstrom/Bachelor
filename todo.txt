@@ -1,5 +1,4 @@
 Required:
-    - Proper error messages
     - Testing - correctness of individual parts + roundtrip
     - Report
 
@@ -7,3 +6,4 @@ Potential:
     - Brzozowski derivatives
     - Left/right quotients
     - Reversal
+    - Attempt to produce smaller regexes by eliminating states in a suitable order
