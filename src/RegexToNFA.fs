@@ -2,14 +2,9 @@ module RegexToNFA
 
 open AbSyn
 open NFAToDFA
-open MinimiseDFA
+//open MinimiseDFA
 open DFAToNFA
 open CheckGrammar
-
-let mutable counter = 1
-let nextID () =
-    counter <- counter + 1
-    (counter - 1)
 
 (* takes two maps and adds the shorter one to the longer one - the function assumes that the maps are disjoint *)
 let mapDisjointUnion map1 map2 =
@@ -52,6 +47,31 @@ let rec removeTailNonterminal (regex : ExtendedRegex) : ExtendedRegex =
     | Nonterminal s -> Epsilon
     | _ -> regex
 
+let makeMoveTotal (dfa : DFA<State>) : DFA<State> =
+    let (dfaStart, dfaMap, alphabet) = dfa
+
+    let deadState = -1
+    let deadStateTransitions = Set.fold (fun acc symbol -> Map.add symbol deadState acc) Map.empty alphabet
+    
+    (* for each state in the DFA *)
+    let totalWithoutDeadState = 
+        Map.map (fun state (symbolToStateMap, isAccepting) ->
+        (* for each symbol in the alphabet *)
+            let transitions = 
+                Set.fold (fun acc symbol ->
+            (* if a transition on the symbol exists, keep it, otherwise add a transition to the dead state *)
+                    match Map.tryFind symbol symbolToStateMap with
+                    | Some s -> Map.add symbol s acc
+                    | None -> Map.add symbol deadState acc
+                ) Map.empty alphabet
+            (transitions, isAccepting)
+        ) dfaMap
+
+    let totalWithDeadState = Map.add deadState (deadStateTransitions, false) totalWithoutDeadState
+    (dfaStart, 
+    totalWithDeadState, 
+    alphabet)
+
 (* constructs the product of two DFAs *)
 (* currently sets accepting flags for intersection, maybe add so it also can set for union? *)
 let rec constructProduct (dfa1 : DFA<State>) (dfa2 : DFA<State>) : DFA<State * State> =
@@ -92,26 +112,40 @@ let addAccepting (endState : State) (nfa : NFAMap) : NFAMap =
         | None -> Some (Set.empty, true)
     ) nfa
 
-let rec regexToNFARec (regex : ExtendedRegex) (xd : XD) (endState : State) : NFA =
+let rec computeAlphabet (regex : ExtendedRegex) (g: Grammar) : Set<char> =
+    match regex with
+    | Union (r1, r2) -> Set.union (computeAlphabet r1 g) (computeAlphabet r2 g)
+    | Seq (r1, r2) -> Set.union (computeAlphabet r1 g) (computeAlphabet r2 g)
+    | Class c ->
+        match c with
+        | ClassContent content -> content
+        | Complement content -> Set.difference ascii content
+    | ZeroOrMore r -> computeAlphabet r g
+    | Nonterminal s ->
+        let productions = List.map (fun (nt, re) -> re) <| List.filter (fun (nt, re) -> nt = s) g
+        List.fold (fun acc p -> Set.union acc (computeAlphabet p g)) Set.empty productions
+    | REComplement r -> computeAlphabet r g
+    | Intersection (r1, r2) -> Set.union (computeAlphabet r1 g) (computeAlphabet r2 g)
+    | Epsilon -> Set.empty
+
+let rec regexToNFARec (regex : ExtendedRegex) (grammar : Grammar) (alphabet : Set<char>) (endState : State) : (State * NFAMap) =
     match regex with
     | Union (r1, r2) ->
         let startingState = nextID()
-        let (sStart, sMap, sAlphabet) = regexToNFARec r1 xd endState
-        let (tStart, tMap, tAlphabet) = regexToNFARec r2 xd endState
+        let (sStart, sMap) = regexToNFARec r1 grammar alphabet endState
+        let (tStart, tMap) = regexToNFARec r2 grammar alphabet endState
 
         (* combine the two maps into one *)
         let combinedMap = mapDisjointUnion sMap tMap
         (startingState, 
         (* add transitions from the starting state to s and t *)
-        Map.add startingState ((Set.ofList [(None, sStart); (None, tStart)]), false) combinedMap,
-        Set.union sAlphabet tAlphabet)
+        Map.add startingState ((Set.ofList [(None, sStart); (None, tStart)]), false) combinedMap)
 
     | Seq (r1, r2) ->
-        let (tStart, tMap, tAlphabet) = regexToNFARec r2 xd endState
-        let (sStart, sMap, sAlphabet) = regexToNFARec r1 xd tStart
+        let (tStart, tMap) = regexToNFARec r2 grammar alphabet endState
+        let (sStart, sMap) = regexToNFARec r1 grammar alphabet tStart
         (sStart,
-        mapDisjointUnion sMap tMap,
-        Set.union sAlphabet tAlphabet)
+        mapDisjointUnion sMap tMap)
 
     | Class c ->
         match c with
@@ -121,18 +155,17 @@ let rec regexToNFARec (regex : ExtendedRegex) (xd : XD) (endState : State) : NFA
             let transitions = Set.map (fun symbol -> (Some symbol, endState)) content
             (* create a map containing these transitions *)
             let map = Map.ofList [(startingState, (transitions, false))]
-            (startingState, map, content)
-        | Complement content -> regexToNFARec (Class(ClassContent(Set.difference ascii content))) xd endState
+            (startingState, map)
+        | Complement content -> regexToNFARec (Class(ClassContent(Set.difference ascii content)))grammar alphabet endState
 
     | ZeroOrMore r ->
         let state = nextID()
-        let (start, map, alphabet) = regexToNFARec r xd state
+        let (start, map) = regexToNFARec r grammar alphabet state
         (state,
-        Map.add state ((Set.ofList [(None, endState); (None, start)]), false) map,
-        alphabet)
+        Map.add state ((Set.ofList [(None, endState); (None, start)]), false) map)
 
     | Nonterminal s ->
-        match xd with
+        (*match transitions with
         | NTab ntab ->
             let (start, map, alphabet) = Map.find s ntab
             let map' =
@@ -148,9 +181,13 @@ let rec regexToNFARec (regex : ExtendedRegex) (xd : XD) (endState : State) : NFA
                 ) map
 
             (start, map', alphabet)
+        *)
+        //| Grammar grammar ->
 
-        | Grammar grammar ->
-            let productions = List.map (fun (nt, re) -> re) <| List.filter (fun (nt, re) -> nt = s) grammar
+        let productions = List.map (fun (nt, re) -> re) <| List.filter (fun (nt, re) -> nt = s) grammar
+        if List.isEmpty productions then
+            raise (MyError ("There are no productions for nonterminal #" + s))
+        else
             let isRecursive' = isRecursive s
 
             (* if the nonterminal has a recursive production *)
@@ -161,35 +198,34 @@ let rec regexToNFARec (regex : ExtendedRegex) (xd : XD) (endState : State) : NFA
                     List.map (fun p ->
                         if isRecursive' p then
                             let re = ZeroOrMore (removeTailNonterminal p)
-                            regexToNFARec re (Grammar grammar) startingState
+                            regexToNFARec re grammar alphabet startingState
                         else
-                            regexToNFARec p (Grammar grammar) endState
+                            regexToNFARec p grammar alphabet endState
                     ) productions
 
-                let (combinedMap, combinedAlphabet) = 
-                    List.fold (fun (accMap, accAlphabet) (start, map, alphabet) ->
-                        (nfaUnion accMap map, Set.union accAlphabet alphabet)
-                    ) (Map.empty, Set.empty) nfaList
+                let combinedMap = 
+                    List.fold (fun accMap (start, map) ->
+                        (nfaUnion accMap map)
+                    ) Map.empty nfaList
 
                 let transitionsToNFAs = 
-                    List.fold (fun acc (start, map, alphabet) ->
+                    List.fold (fun acc (start, map) ->
                         Set.union acc (Set.ofList [None, start])
                     ) Set.empty nfaList
 
                 let mapToNFAs = Map.ofList ([(startingState, (transitionsToNFAs, false))])
 
                 (startingState,
-                nfaUnion combinedMap mapToNFAs,
-                combinedAlphabet)
+                nfaUnion combinedMap mapToNFAs)
             else
                 let unionProductions = List.fold (fun acc p -> Union(acc, p)) (List.head productions) (List.tail productions)
-                regexToNFARec unionProductions (Grammar grammar) endState
+                regexToNFARec unionProductions grammar alphabet endState
 
     | REComplement r ->
-        let (nfaStart, nfaMap, alphabet) = regexToNFARec r xd endState
+        let (nfaStart, nfaMap) = regexToNFARec r grammar alphabet endState
         let mapWithAccepting = addAccepting endState nfaMap
         let dfa = nfaToDFA (nfaStart, mapWithAccepting, alphabet)
-        let (totalStart, totalMap, alphabet) = makeMoveTotal dfa
+        let (totalStart, totalMap, _) = makeMoveTotal dfa
 
         (* flip accepting flag *)
         let mapAcceptingFlipped = 
@@ -197,63 +233,80 @@ let rec regexToNFARec (regex : ExtendedRegex) (xd : XD) (endState : State) : NFA
                 (charMap, not isAccepting)
             ) totalMap
 
-        dfaToNFA (totalStart, mapAcceptingFlipped, alphabet)
+        let (start, map, _) = dfaToNFA (totalStart, mapAcceptingFlipped, alphabet)
+
+        let mapAcceptingToEnd =
+            Map.map (fun state (ts, isAccepting) ->
+                if isAccepting then
+                    (Set.add (None, endState) ts, false)
+                else
+                    (ts, isAccepting)
+            ) map
+
+        (start, mapAcceptingToEnd)
 
     | Intersection (r1, r2) ->
-        let (nfaStart1, nfaMap1, alphabet1) = regexToNFARec r1 xd endState
-        let (nfaStart2, nfaMap2, alphabet2) = regexToNFARec r2 xd endState
+        let (nfaStart1, nfaMap1) = regexToNFARec r1 grammar alphabet endState
+        let (nfaStart2, nfaMap2) = regexToNFARec r2 grammar alphabet endState
 
-        (* if thw two expressions have the same alphabet then continue *)
-        if alphabet1 = alphabet2 then
-            (* construct DFA for r1 *)
-            let nfaMap1' = addAccepting endState nfaMap1
-            let dfa1 = nfaToDFA (nfaStart1, nfaMap1', alphabet1)
+        (* construct DFA for r1 *)
+        let nfaMap1' = addAccepting endState nfaMap1
+        let dfa1 = nfaToDFA (nfaStart1, nfaMap1', alphabet)
 
-            (* construct DFA for r2 *)
-            let nfaMap2' = addAccepting endState nfaMap2
-            let dfa2 = nfaToDFA (nfaStart2, nfaMap2', alphabet2)
+        (* construct DFA for r2 *)
+        let nfaMap2' = addAccepting endState nfaMap2
+        let dfa2 = nfaToDFA (nfaStart2, nfaMap2', alphabet)
 
-            (* if thw two expressions have the same alphabet *)
-            let (productStart, productMap, alphabet) = constructProduct dfa1 dfa2
-            
-            (* map each pair of product states to a new NFA state *)
-            let productStateToNFAStateMap =
-                Seq.fold (fun acc s ->
-                    Map.add s (nextID()) acc
-                ) Map.empty (Map.keys productMap)
+        (* if thw two expressions have the same alphabet *)
+        let (productStart, productMap, _) = constructProduct dfa1 dfa2
+        
+        (* map each pair of product states to a new NFA state *)
+        let productStateToNFAStateMap =
+            Seq.fold (fun acc s ->
+                Map.add s (nextID()) acc
+            ) Map.empty (Map.keys productMap)
 
-            (* convert product to NFA *)
-            let nfaMap =
-                (* for every state *)
-                Map.fold (fun acc statePair (charMap, isAccepting) ->
-                    (* get the nfa state for the pair *)
-                    let state = Map.find statePair productStateToNFAStateMap
-                    (* convert map to set of transitions *)
-                    let transitions =
-                        Map.fold (fun acc' symbol pairTo ->
-                            let nfaTo = Map.find pairTo productStateToNFAStateMap
-                            Set.add (Some symbol, nfaTo) acc'
-                        ) Set.empty charMap
-                    
-                    Map.add state (transitions, isAccepting) acc
-                ) Map.empty productMap
+        (* convert product to NFA *)
+        let nfaMap =
+            (* for every state *)
+            Map.fold (fun acc statePair (charMap, isAccepting) ->
+                (* get the nfa state for the pair *)
+                let state = Map.find statePair productStateToNFAStateMap
+                (* convert map to set of transitions *)
+                let transitions =
+                    Map.fold (fun acc' symbol pairTo ->
+                        let nfaTo = Map.find pairTo productStateToNFAStateMap
+                        Set.add (Some symbol, nfaTo) acc'
+                    ) Set.empty charMap
+                
+                Map.add state (transitions, isAccepting) acc
+            ) Map.empty productMap
 
-            (Map.find productStart productStateToNFAStateMap, nfaMap, alphabet)
-        else
-            failwith "When finding the intersection of two languages, the alphabets must be identical"
+        let mapAcceptingToEnd =
+            Map.map (fun state (ts, isAccepting) ->
+                if isAccepting then
+                    (Set.add (None, endState) ts, false)
+                else
+                    (ts, isAccepting)
+            ) nfaMap
+
+        (Map.find productStart productStateToNFAStateMap, mapAcceptingToEnd)
     
-    | Epsilon -> (endState, Map.empty, Set.empty)
+    | Epsilon -> (endState, Map.empty)
 
 let regexToNFA grammar regex =
     let layers = checkGrammar grammar
-    let ntab =
+    (*let ntab =
         List.fold (fun acc nt ->
             let nfa = regexToNFARec (Nonterminal nt) (Grammar grammar) 0
             Map.add nt nfa acc
         ) Map.empty (List.concat layers)
-    
+    printfn "%A" regex
+    printfn "%A" ntab*)
+    let alphabet = computeAlphabet regex grammar
     let endState = nextID()
-    let (start, map, alphabet) = regexToNFARec regex (NTab ntab) endState
+    let (start, map) = regexToNFARec regex grammar alphabet endState
+
     (start,
     Map.change endState (fun x ->
         match x with

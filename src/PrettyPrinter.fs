@@ -38,10 +38,10 @@ let ppClass (c : Class) : string =
         | 0 -> "."
         | _ -> "[^" + ppChars content + "]"
 
-let rec ppRegex (regex : ExtendedRegex) : string =
+let rec ppRegex' (regex : ExtendedRegex) : string =
     match regex with
-    | Union(r, seq) -> ppRegex r + "|" + ppSeq seq
-    | Intersection(r, seq) -> ppRegex r + "&" + ppSeq seq
+    | Union(r, seq) -> ppRegex' r + "|" + ppSeq seq
+    | Intersection(r, seq) -> ppRegex' r + "&" + ppSeq seq
     | s -> ppSeq s
 
 and ppSeq (seq : ExtendedRegex) : string =
@@ -61,8 +61,13 @@ and ppRep (rep : ExtendedRegex) : string =
 and ppAtom (atom : ExtendedRegex) : string  =
     match atom with
     | Class c -> ppClass c
-    | r -> "(" + ppRegex r + ")"
+    | Nonterminal s -> "#" + s
+    | r -> "(" + ppRegex' r + ")"
 
+let ppRegex (regex : ExtendedRegex) : string =
+    "/" + ppRegex' regex + "/"
+
+(*
 let transitionToString (s1: State) (t : Transition) =
     match t with
     | (Some c, s2) -> string s1 + " -> " + string c + " " + string s2 + "\n"
@@ -81,7 +86,9 @@ let rec ppNFA (nfa : NFA) : string =
     + Map.fold (fun acc key value -> acc + transitionsToString key value) "" map
     + "\nAlphabet: " + ppChars alphabet
     )
+*)
 
+(*
 let dfaTransitionsToString (s1 : State) (ts : Map<char, State> * bool) : string =
     let res = Map.fold (fun acc symbol s2 -> acc + string s1 + " -> " + string symbol + " " + string s2 + "\n") "" (fst ts)
     if snd ts then
@@ -89,9 +96,46 @@ let dfaTransitionsToString (s1 : State) (ts : Map<char, State> * bool) : string 
     else
         res
 
-let rec ppDFA (dfa : DFA<State>) : string =
+let ppDFA (dfa : DFA<State>) : string =
     let (start, map, alphabet) = dfa
     ("Starting state: " + string start + "\n"
     + Map.fold (fun acc key value -> acc + dfaTransitionsToString key value) "" map
     + "Alphabet: " + ppChars alphabet
     )
+*)
+
+let ppNFA (nfa : NFA) : string =
+    let (start, map, alphabet) = nfa
+    "{" +
+    Map.fold (fun acc fromState (ts, isAccepting) ->
+        let transitions =
+            Set.fold (fun acc' (symbol, toState) ->
+                let symbol' = 
+                    match symbol with
+                    | Some s -> string s
+                    | None -> ""
+                acc' + "#" + string fromState + " -> " + symbol' + " #" + string toState + ";\n"
+            ) "" ts
+        if isAccepting then
+            acc + transitions + "#" + string fromState + " -> ;\n"
+        else
+            acc + transitions
+    ) "" map
+    + "}\n"
+    + "/" + "#" + string start + "/"
+
+let ppDFA (dfa : DFA<State>) : string =
+    let (start, map, alphabet) = dfa
+    "{" + 
+    Map.fold (fun acc fromState (charMap, isAccepting) ->
+        let transitions =
+            Map.fold (fun acc' symbol toState ->
+                acc' + "#" + string fromState + " -> " + string symbol + " #" + string toState + ";\n"
+            ) "" charMap
+        if isAccepting then
+            acc + transitions + "#" + string fromState + " -> ;\n"
+        else
+            acc + transitions
+    ) "" map
+    + "}\n"
+    + "/" + "#" + string start + "/"

@@ -110,7 +110,24 @@ let addAcceptingOrRejecting (transitionMap : Map<State, (Map<char, State>)>) (wo
         let accepting = isAccepting nfaStates nfa
         (transitions, accepting)) transitionMap
 
-let nfaToDFA (nfa : NFA) : DFA<_> =
+let nfaToDFA (nfa : NFA) : DFA<State> =
+    let (start, map, alphabet) = nfa
+
+    (* find the epsilon closure of the starting state *)
+    let s0 = epsilonClosure start nfa
+    let startingState = nextID()
+    
+    (* initialize the worklist to contain the starting state *)
+    let workList = Map.ofList [(startingState, (s0, false))]
+    (* use the subset construction algorithm to find which DFA states correspond to which NFA states
+       and to find the DFA transitions *)
+    let (fullWorkList, dfaTransitionMap) = constructSubset workList nfa Map.empty
+
+    (startingState, 
+    addAcceptingOrRejecting dfaTransitionMap fullWorkList nfa, 
+    alphabet)
+
+let renumberAndConvertNFAToDFA (nfa : NFA) : DFA<State> =
     let (start, map, alphabet) = nfa
 
     (* set counter to 1 for renumbering - don't like doing this, but don't know what else to do *)

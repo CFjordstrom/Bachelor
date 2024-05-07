@@ -44,6 +44,8 @@ Nonterminal   -> '#' *any alphanumerical character*
 
 *)
 
+exception MyError of string
+
 type ClassContent = Set<char>
 
 type Class =
@@ -75,9 +77,11 @@ and ExtendedRegex =
 
 type GNFA = ExtendedRegex option[,]
 
+(*
 type NTab = Map<string, NFA>
-type XD =
+type Transitions =
     Grammar of Grammar
   | NTab of NTab
+*)
 
 type RegLang = Grammar * ExtendedRegex

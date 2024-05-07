@@ -154,4 +154,4 @@ let minimiseDFA (dfa : DFA<_>) : DFA<_> =
     let workList = Map.ofList ([nextID(), (accepting, false); nextID(), (rejecting, false)])
     let minimisedDFA = constructMinimalDFA workList (dfaStart, dfaMap, alphabet)
     (* convert minimised DFA to NFA so it can be re-numbered *)
-    nfaToDFA <| dfaToNFA minimisedDFA
+    renumberAndConvertNFAToDFA <| dfaToNFA minimisedDFA

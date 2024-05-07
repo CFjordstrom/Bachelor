@@ -32,39 +32,62 @@ let parseRegLang (input : string) : RegLang =
             System.Environment.Exit 1
             ([], Epsilon)
         | err -> 
-            printfn "%s" err.Message
+            if err.Message = "parse error" then 
+                printfn "Parse error %s" Parser.ErrorContextDescriptor
+            else 
+                printfn "%s" err.Message
             System.Environment.Exit 1
             ([], Epsilon)
     else
-        failwith "invalid input"
+        failwith "Invalid input"
 
 [<EntryPoint>]
 let main (args : string[]) : int =
-    match args with
-    | [|"-regex"; input|] ->
-        let (grammar, regex) = parseRegLang input
-        printfn "%s" (ppRegex << xfaToRegex << minimiseDFA << nfaToDFA <| regexToNFA grammar regex)
-    | [|"-mindfa"; input|] ->
-        let (grammar, regex) = parseRegLang input
-        printfn "%s" (ppDFA << minimiseDFA << nfaToDFA <| regexToNFA grammar regex)
-    | [|"-dfa"; input|] ->
-        let (grammar, regex) = parseRegLang input
-        printfn "%s" (ppDFA << nfaToDFA <| regexToNFA grammar regex)
-    | [|"-nfa"; input|] ->
-        let (grammar, regex) = parseRegLang input
-        printfn "%s" (ppNFA <| regexToNFA grammar regex)
-    | [|"-run"; reglang; input|] ->
-        let (grammar, regex) = parseRegLang reglang
-        let dfa = minimiseDFA << nfaToDFA <| regexToNFA grammar regex
-        if runDFA input dfa then
-            printfn "The given input string %s was accepted by the regular language represented by %s" input (ppRegex <| xfaToRegex dfa)
-        else
-            printfn "The given input string %s was rejected by the regular language represented by %s" input (ppRegex <| xfaToRegex dfa)
+    try
+        match args with
+        | [|"-regex"; input|] ->
+            let xd = Map.empty
+            let xdd = Map.find 1 xd
+            let (grammar, regex) = parseRegLang input
+            printfn "%s" (ppRegex << xfaToRegex << minimiseDFA << nfaToDFA <| regexToNFA grammar regex)
+        | [|"-mindfa"; input|] ->
+            let (grammar, regex) = parseRegLang input
+            printfn "%s" (ppDFA << minimiseDFA << nfaToDFA <| regexToNFA grammar regex)
+        | [|"-dfa"; input|] ->
+            let (grammar, regex) = parseRegLang input
+            printfn "%s" (ppDFA << nfaToDFA <| regexToNFA grammar regex)
+        | [|"-nfa"; input|] ->
+            let (grammar, regex) = parseRegLang input
+            printfn "%s" (ppNFA <| regexToNFA grammar regex)
+        | [|"-run"; reglang; input|] ->
+            let (grammar, regex) = parseRegLang reglang
+            let dfa = minimiseDFA << nfaToDFA <| regexToNFA grammar regex
+            if runDFA input dfa then
+                printfn "The input string \"%s\" was accepted by the regular language represented by %s" input (ppRegex <| xfaToRegex dfa)
+            else
+                printfn "The input string \"%s\" was rejected by the regular language represented by %s" input (ppRegex <| xfaToRegex dfa)
 
-    | _ -> printfn "Usage: dotnet run <options> <filename or regex>\n
-Possible options are:
-    -regex
-    -mindfa
-    -dfa
-    -nfa"
-    0
+        | _ -> printfn "Usage: 
+    dotnet run <options> <filename or regex>\n
+    Possible options are:
+        -regex
+        -mindfa
+        -dfa
+        -nfa
+        
+    Or
+    dotnet run -run <filename or regex> <input string>
+    "
+        0
+    with
+    | MyError err -> 
+        printfn "%s" err
+        System.Environment.Exit 1
+        1
+    | err ->
+        if err.Message = "The given key was not present in the dictionary." then
+            printfn "Unexpected error during conversion." // very very bad error message
+        else
+            printfn "%s" err.Message
+        System.Environment.Exit 1
+        1

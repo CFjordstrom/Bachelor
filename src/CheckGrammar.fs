@@ -1,6 +1,7 @@
 module CheckGrammar
 
 open AbSyn
+open PrettyPrinter
 
 type Layers = (string list) list
 
@@ -16,7 +17,7 @@ let rec getDependencies (nt : string) (re : ExtendedRegex) : string list =
         let dep1 = getDependencies nt r1
         let dep2 = getDependencies nt r2
         if List.contains nt ((init dep1) @ (init dep2)) then
-            failwith ("Recursive nonterminal found in non-tail position in the production of #" + nt + " at line/col")
+            raise (MyError ("Recursive nonterminal found in non-tail position in the production of #" + nt))
         else
             dep1 @ dep2
 
@@ -25,7 +26,7 @@ let rec getDependencies (nt : string) (re : ExtendedRegex) : string list =
     | Seq (r, Epsilon) ->
         let dep = getDependencies nt r
         if List.contains nt (init dep) then
-            failwith ("Recursive nonterminal found in non-tail position in the production of #" + nt + " at line/col")
+            raise (MyError ("Recursive nonterminal found in non-tail position in the production of #" + nt))
         else
             dep
 
@@ -33,7 +34,7 @@ let rec getDependencies (nt : string) (re : ExtendedRegex) : string list =
         let dep1 = getDependencies nt r1
         let dep2 = getDependencies nt r2
         if List.contains nt (dep1 @ (init dep2)) then
-            failwith ("Recursive nonterminal found in non-tail position in the production of #" + nt + " at line/col")
+            raise (MyError ("Recursive nonterminal found in non-tail position in the production of #" + nt))
         else
             dep1 @ dep2
 
@@ -42,7 +43,7 @@ let rec getDependencies (nt : string) (re : ExtendedRegex) : string list =
     | ZeroOrMore r -> 
         let dep = getDependencies nt r
         if List.contains nt (init dep) then
-            failwith ("Recursive nonterminal found in non-tail position in the production of #" + nt + " at line/col")
+            raise (MyError ("Recursive nonterminal found in non-tail position in the production of #" + nt))
         else
             dep
 
@@ -51,7 +52,7 @@ let rec getDependencies (nt : string) (re : ExtendedRegex) : string list =
     | REComplement r -> 
         let dep = getDependencies nt r
         if List.contains nt dep then
-            failwith ("Recursive nonterminal found in a complement expression in the production of #" + nt + " at line/col")
+            raise (MyError ("Recursive nonterminal found in complement expression" + ppRegex (REComplement r) + "in the production of #" + nt))
         else
             dep
 
@@ -59,7 +60,7 @@ let rec getDependencies (nt : string) (re : ExtendedRegex) : string list =
         let dep1 = getDependencies nt r1
         let dep2 = getDependencies nt r2
         if List.contains nt (dep1 @ dep2) then
-            failwith ("Recursive nonterminal found in an intersection expression in the production of #" + nt + " at line/col")
+            raise (MyError ("Recursive nonterminal found in intersection expression " + ppRegex (Intersection(r1, r2)) + " in the production of #" + nt))
         else
             dep1 @ dep2
 
@@ -77,11 +78,8 @@ let rec buildDependencyGraph (g : Grammar) (layers : Layers) : Layers =
                 else
                     let dependenciesDefined =
                         List.forall (fun nt' ->
-                            List.exists (fun layer ->
-                                List.contains nt' layer || nt = nt'
-                            ) layers
+                            List.exists (fun layer -> List.contains nt' layer) layers || nt = nt'
                         ) dep
-
                     if dependenciesDefined then
                         nt :: acc
                     else
@@ -89,7 +87,7 @@ let rec buildDependencyGraph (g : Grammar) (layers : Layers) : Layers =
             ) [] g
             
         if List.isEmpty newLayer then
-            failwith ("There is an unresolvable dependency issue in the production(s) of " + (String.concat ", " (List.map (fun s -> "#" + s) <| List.map fst g)))
+            raise (MyError ("There is an unresolvable dependency issue in the production(s) of " + (String.concat ", " (List.map (fun s -> "#" + s) <| List.map fst g))))
         else
             let g' = List.filter (fun (nt, _) -> List.contains nt newLayer = false) g
             let layers' = layers @ [newLayer]

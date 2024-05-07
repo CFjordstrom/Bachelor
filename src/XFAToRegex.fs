@@ -106,7 +106,7 @@ let xfaToRegex (automaton : obj) : ExtendedRegex =
         match automaton with
         | :? NFA as nfa -> nfa
         | :? DFA<State> as dfa -> dfaToNFA dfa
-        | _ -> failwith "invalid argument type to xfaToRegex"
+        | _ -> raise (MyError "invalid argument type to xfaToRegex") // can never happen
     
     let gnfa = nfaToGNFAMap input
     kleenesAlgorithm gnfa
