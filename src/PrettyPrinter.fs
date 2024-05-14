@@ -103,10 +103,10 @@ let ppDFA (dfa : DFA<State>) : string =
     + "Alphabet: " + ppChars alphabet
     )
 *)
-
+(*
 let ppNFA (nfa : NFA) : string =
     let (start, map, alphabet) = nfa
-    "{" +
+    "{\n" +
     Map.fold (fun acc fromState (ts, isAccepting) ->
         let transitions =
             Set.fold (fun acc' (symbol, toState) ->
@@ -117,25 +117,96 @@ let ppNFA (nfa : NFA) : string =
                 acc' + "#" + string fromState + " -> " + symbol' + " #" + string toState + ";\n"
             ) "" ts
         if isAccepting then
-            acc + transitions + "#" + string fromState + " -> ;\n"
+            acc + transitions + "#" + string fromState + " -> ();\n"
         else
             acc + transitions
     ) "" map
     + "}\n"
     + "/" + "#" + string start + "/"
+*)
+
+let ppNFA (nfa : NFA) : string =
+    let (start, map, alphabet) = nfa
+    "{\n" +
+    (* for all states *)
+    Map.fold (fun acc fromState (ts, isAccepting) ->
+        (* combine all symbols to the same state *)
+        let toStateToSymbolsSet =
+            Set.fold (fun acc' (symbol, toState) ->
+                match Map.tryFind toState acc' with
+                | Some symbols ->
+                    match symbol with
+                    | Some c -> Map.add toState (Set.add c symbols) acc'
+                    | None -> acc'
+                | None ->
+                    match symbol with
+                    | Some c -> Map.add toState (Set.singleton c) acc'
+                    | None -> Map.add toState Set.empty acc'
+            ) Map.empty ts
+
+        (* convert set of chars to string *)
+        let toStateToSymbolsString = 
+            Map.map (fun toState symbols ->
+                match ppClass (ClassContent symbols) with
+                | "[]" -> ""
+                | str -> str
+            ) toStateToSymbolsSet
+
+        (* put all transitions into a list *)
+        let transitionList =
+            Map.fold (fun acc' toState symbols ->
+                match symbols with
+                | "" -> ("#" + string toState) :: acc'
+                | _ -> (symbols + " #" + string toState) :: acc'
+            ) [] toStateToSymbolsString
+
+        (* concat with | as separator *)
+        let transition = String.concat " | " transitionList
+
+        match isAccepting, String.length transition with
+        | true, 0 -> acc + "#" + string fromState + " -> ();\n"
+        | true, _ -> acc + "#" + string fromState + " -> " + transition + " | ();\n"
+        | false, 0 -> acc + "#" + string fromState + " -> [];\n"
+        | false, _ -> acc + "#" + string fromState + " -> " + transition + ";\n"
+    ) "" map
+    + "}\n" + "/#" + string start + "/"
 
 let ppDFA (dfa : DFA<State>) : string =
     let (start, map, alphabet) = dfa
-    "{" + 
+    "{\n" + 
+    (* for all states *)
     Map.fold (fun acc fromState (charMap, isAccepting) ->
-        let transitions =
-            Map.fold (fun acc' symbol toState ->
-                acc' + "#" + string fromState + " -> " + string symbol + " #" + string toState + ";\n"
-            ) "" charMap
-        if isAccepting then
-            acc + transitions + "#" + string fromState + " -> ;\n"
-        else
-            acc + transitions
+        (* combine all symbols to the same state *)
+        let toStateToSymbolsSet = 
+            Map.fold (fun acc' symbol toState -> 
+                match Map.tryFind toState acc' with
+                | Some symbols -> Map.add toState (Set.add symbol symbols) acc'
+                | None -> Map.add toState (Set.singleton symbol) acc'
+            ) Map.empty charMap
+
+        (* convert set of chars to string *)
+        let toStateToSymbolsString = 
+            Map.map (fun toState symbols ->
+                match ppClass (ClassContent symbols) with
+                | "[]" -> ""
+                | str -> str
+            ) toStateToSymbolsSet
+
+        (* put all transitions into a list *)
+        let transitionList =
+            Map.fold (fun acc' toState symbols ->
+                match symbols with
+                | "" -> ("#" + string toState) :: acc'
+                | _ -> (symbols + " #" + string toState) :: acc'
+            ) [] toStateToSymbolsString
+
+        (* concat with | as separator *)
+        let transition = String.concat " | " transitionList
+
+        match isAccepting, String.length transition with
+        | true, 0 -> acc + "#" + string fromState + " -> ();\n"
+        | true, _ -> acc + "#" + string fromState + " -> " + transition + " | ();\n"
+        | false, 0 -> acc + "#" + string fromState + " -> [];\n"
+        | false, _ -> acc + "#" + string fromState + " -> " + transition + ";\n"
     ) "" map
-    + "}\n"
-    + "/" + "#" + string start + "/"
+    + "}\n" + "/#" + string start + "/"

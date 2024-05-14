@@ -34,6 +34,7 @@ let parse_error_rich =
 %left PIPE AMPERSAND
 
 %start Start
+%start ClassContent
 %type <AbSyn.RegLang> Start
 %type <AbSyn.ExtendedRegex> ExtendedRegex
 %type <AbSyn.ExtendedRegex> Seq

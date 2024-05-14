@@ -26,9 +26,6 @@ let nfaUnion (map1 : NFAMap) (map2 : NFAMap) : NFAMap =
         ) acc
     ) longer shorter
 
-(* set of all printable ascii chars *)
-let ascii = Set.ofList <| List.map char [0x20u..0x7Eu]
-
 (* given a regex and a nonterminal, the function returns true if there is a nonterminal in the tail position that is identical to the given nonterminal *)
 let rec isRecursive (nt : string) (regex : ExtendedRegex) : bool =
     match regex with
@@ -112,23 +109,27 @@ let addAccepting (endState : State) (nfa : NFAMap) : NFAMap =
         | None -> Some (Set.empty, true)
     ) nfa
 
-let rec computeAlphabet (regex : ExtendedRegex) (g: Grammar) : Set<char> =
+let rec computeAlphabet (regex : ExtendedRegex) (g: Grammar) (visited : string list) : Set<char> =
     match regex with
-    | Union (r1, r2) -> Set.union (computeAlphabet r1 g) (computeAlphabet r2 g)
-    | Seq (r1, r2) -> Set.union (computeAlphabet r1 g) (computeAlphabet r2 g)
+    | Union (r1, r2) -> Set.union (computeAlphabet r1 g visited) (computeAlphabet r2 g visited)
+    | Seq (r1, r2) -> Set.union (computeAlphabet r1 g visited) (computeAlphabet r2 g visited)
     | Class c ->
         match c with
         | ClassContent content -> content
-        | Complement content -> Set.difference ascii content
-    | ZeroOrMore r -> computeAlphabet r g
+        | Complement content -> Set.empty
+    | ZeroOrMore r -> computeAlphabet r g visited
     | Nonterminal s ->
-        let productions = List.map (fun (nt, re) -> re) <| List.filter (fun (nt, re) -> nt = s) g
-        List.fold (fun acc p -> Set.union acc (computeAlphabet p g)) Set.empty productions
-    | REComplement r -> computeAlphabet r g
-    | Intersection (r1, r2) -> Set.union (computeAlphabet r1 g) (computeAlphabet r2 g)
+        if List.contains s visited then
+            Set.empty
+        else
+            let productions = List.map (fun (nt, re) -> re) <| List.filter (fun (nt, re) -> nt = s) g
+            let visited' = s :: visited
+            List.fold (fun acc p -> Set.union acc (computeAlphabet p g (visited'))) Set.empty productions
+    | REComplement r -> computeAlphabet r g visited
+    | Intersection (r1, r2) -> Set.union (computeAlphabet r1 g visited) (computeAlphabet r2 g visited)
     | Epsilon -> Set.empty
 
-let rec regexToNFARec (regex : ExtendedRegex) (grammar : Grammar) (alphabet : Set<char>) (endState : State) : (State * NFAMap) =
+let rec regexToNFARec (regex : ExtendedRegex) (grammar : Grammar) (alphabet : Alphabet) (endState : State) : (State * NFAMap) =
     match regex with
     | Union (r1, r2) ->
         let startingState = nextID()
@@ -156,7 +157,7 @@ let rec regexToNFARec (regex : ExtendedRegex) (grammar : Grammar) (alphabet : Se
             (* create a map containing these transitions *)
             let map = Map.ofList [(startingState, (transitions, false))]
             (startingState, map)
-        | Complement content -> regexToNFARec (Class(ClassContent(Set.difference ascii content)))grammar alphabet endState
+        | Complement content -> regexToNFARec (Class(ClassContent(Set.difference alphabet content)))grammar alphabet endState
 
     | ZeroOrMore r ->
         let state = nextID()
@@ -294,7 +295,7 @@ let rec regexToNFARec (regex : ExtendedRegex) (grammar : Grammar) (alphabet : Se
     
     | Epsilon -> (endState, Map.empty)
 
-let regexToNFA grammar regex =
+let regexToNFA (grammar : Grammar) (regex : ExtendedRegex) (alphabet : Alphabet option) : NFA =
     let layers = checkGrammar grammar
     (*let ntab =
         List.fold (fun acc nt ->
@@ -303,9 +304,12 @@ let regexToNFA grammar regex =
         ) Map.empty (List.concat layers)
     printfn "%A" regex
     printfn "%A" ntab*)
-    let alphabet = computeAlphabet regex grammar
+    let alphabet' =
+        match alphabet with
+        | Some a -> a
+        | None -> computeAlphabet regex grammar []
     let endState = nextID()
-    let (start, map) = regexToNFARec regex grammar alphabet endState
+    let (start, map) = regexToNFARec regex grammar alphabet' endState
 
     (start,
     Map.change endState (fun x ->
@@ -313,4 +317,4 @@ let regexToNFA grammar regex =
         | Some (transitions, isAccepting) -> Some (transitions, isAccepting)
         | None -> Some (Set.empty, true)
     ) map,
-    alphabet)
+    alphabet')
