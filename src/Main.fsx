@@ -20,9 +20,8 @@ let usage' =
         "   -dfa\n";
         "   -nfa\n\n";
         "Or\n";
-        "dotnet run -run <filename or regular language> <input string>\n\n";
-        "If the regular language contains complement of an expression '!', complement of a class '^' or all characters '.', then an alphabet must be provided using -alphabet <alphabet>\n\n";
-        "e.g. dotnet run -regex /[^a-z]/ -alphabet a-z0-9";
+        "dotnet run -run <input string> <filename or regular language>\n\n";
+        ""
     ]
 
 let usage = List.fold (+) "" usage'
@@ -108,16 +107,16 @@ let main (args : string[]) : int =
         | [|option; regLang|] ->
             let (grammar, regex) = parseRegLang regLang
             convertAndPrint option grammar regex None
-        | [|option; regLang; "-alphabet"; alphabet|] ->
+        | [|option; "-alphabet"; alphabet; regLang|] ->
             let (grammar, regex) = parseRegLang regLang
             let alphabet' = 
                 Parser.ClassContent Lexer.Token
                 <| LexBuffer<_>.FromBytes (Encoding.UTF8.GetBytes alphabet)
             convertAndPrint option grammar regex (Some alphabet')
-        | [|"-run"; regLang; input|] ->
+        | [|"-run"; input; regLang|] ->
             let (grammar, regex) = parseRegLang regLang
             runAndPrint grammar regex input None
-        | [|"-run"; regLang; input; "-alphabet"; alphabet|] ->
+        | [|"-run"; input; "-alphabet"; alphabet; regLang;|] ->
             let (grammar, regex) = parseRegLang regLang
             let alphabet' = 
                 Parser.ClassContent Lexer.Token

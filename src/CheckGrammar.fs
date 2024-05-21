@@ -5,67 +5,70 @@ open PrettyPrinter
 
 type Layers = (string list) list
 
-let rec init lst =
-    match lst with
-    | [] -> []
-    | [x] -> []
-    | x :: xs -> x :: (init xs)
-
-let rec getDependencies (nt : string) (re : ExtendedRegex) : string list =
+let rec getDependencies' (nt : string) (re : ExtendedRegex) : Set<string> * Set<string> =
     match re with
-    | Union (r1, r2) -> 
-        let dep1 = getDependencies nt r1
-        let dep2 = getDependencies nt r2
-        if List.contains nt ((init dep1) @ (init dep2)) then
-            raise (MyError ("Recursive nonterminal found in non-tail position in the production of #" + nt))
+    | Union(r1, r2) ->
+        let (init1, tail1) = getDependencies' nt r1
+        let (init2, tail2) = getDependencies' nt r2
+        let init = Set.union init1 init2
+        let tail = Set.union tail1 tail2
+        if Set.contains nt init then
+            raise (MyError ("Recursive nonterminal found in non-tail position in expression " + ppRegex re + " in the production of #" + nt))
         else
-            dep1 @ dep2
+            (init, tail)
 
-    | Seq (Nonterminal s, Epsilon) -> [s]
-
-    | Seq (r, Epsilon) ->
-        let dep = getDependencies nt r
-        if List.contains nt (init dep) then
-            raise (MyError ("Recursive nonterminal found in non-tail position in the production of #" + nt))
+    | Seq(Nonterminal s, Epsilon) -> (Set.empty, Set.singleton s)
+    | Seq(r, Epsilon) ->
+        let (init, tail) = getDependencies' nt r
+        if Set.contains nt init then
+            raise (MyError ("Recursive nonterminal found in non-tail position in expression " + ppRegex re + " in the production of #" + nt))
         else
-            dep
+            (init, tail)
 
-    | Seq (r1, r2) -> 
-        let dep1 = getDependencies nt r1
-        let dep2 = getDependencies nt r2
-        if List.contains nt (dep1 @ (init dep2)) then
-            raise (MyError ("Recursive nonterminal found in non-tail position in the production of #" + nt))
+    | Seq(r1, r2) ->
+        let (init1, tail1) = getDependencies' nt r1
+        let (init2, tail2) = getDependencies' nt r2
+        let init = Set.union init1 <| Set.union tail1 init2
+        if Set.contains nt init then
+            raise (MyError ("Recursive nonterminal found in non-tail position in expression " + ppRegex re + " in the production of #" + nt))
         else
-            dep1 @ dep2
+            (init, tail2)
+    
+    | Class c -> (Set.empty, Set.empty)
 
-    | Class c -> []
-
-    | ZeroOrMore r -> 
-        let dep = getDependencies nt r
-        if List.contains nt (init dep) then
-            raise (MyError ("Recursive nonterminal found in non-tail position in the production of #" + nt))
+    | ZeroOrMore r ->
+        let (init, tail) = getDependencies' nt r
+        if Set.contains nt (Set.union init tail) then
+            raise (MyError ("Recursive nonterminal found in \"zero or more\" expression " + ppRegex re + " in the production of #" + nt))
         else
-            dep
+            (init, tail)
 
-    | Nonterminal s -> [s]
+    | Nonterminal s -> (Set.empty, Set.singleton s)
 
-    | REComplement r -> 
-        let dep = getDependencies nt r
-        if List.contains nt dep then
-            raise (MyError ("Recursive nonterminal found in complement expression" + ppRegex (REComplement r) + "in the production of #" + nt))
+    | REComplement r ->
+        let (init, tail) = getDependencies' nt r
+        if Set.contains nt (Set.union init tail) then
+            raise (MyError ("Recursive nonterminal found in complement expression " + ppRegex re + " in the production of #" + nt))
         else
-            dep
+            (init, tail)
 
-    | Intersection (r1, r2) -> 
-        let dep1 = getDependencies nt r1
-        let dep2 = getDependencies nt r2
-        if List.contains nt (dep1 @ dep2) then
+    | Intersection(r1, r2) ->
+        let (init1, tail1) = getDependencies' nt r1
+        let (init2, tail2) = getDependencies' nt r2
+        let init = Set.union init1 init2
+        let tail = Set.union tail1 tail2
+        let all = Set.union init tail
+        if Set.contains nt all then
             raise (MyError ("Recursive nonterminal found in intersection expression " + ppRegex (Intersection(r1, r2)) + " in the production of #" + nt))
         else
-            dep1 @ dep2
+            (init, tail)
+    
+    | Epsilon -> (Set.empty, Set.empty)
 
-    | Epsilon -> []
-        
+let getDependencies (nt : string) (re : ExtendedRegex) : string list =
+    let (head, tail) = getDependencies' nt re
+    Set.toList <| Set.union head tail
+
 let rec buildDependencyGraph (g : Grammar) (layers : Layers) : Layers =
     match g with
     | [] -> layers
@@ -78,7 +81,8 @@ let rec buildDependencyGraph (g : Grammar) (layers : Layers) : Layers =
                 else
                     let dependenciesDefined =
                         List.forall (fun nt' ->
-                            List.exists (fun layer -> List.contains nt' layer) layers || nt = nt'
+                            List.exists (fun layer -> List.contains nt' layer) layers 
+                            || nt = nt'
                         ) dep
                     if dependenciesDefined then
                         nt :: acc

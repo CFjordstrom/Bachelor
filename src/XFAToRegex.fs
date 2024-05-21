@@ -39,7 +39,7 @@ let nfaToGNFAMap (nfa : NFA) : GNFA =
                 (* update the corresponding field with a new regular expression *)
                 match gnfa[state, dest] with
                 | Some r -> 
-                    gnfa[state, dest] <- Some <| Union(r, transition)
+                    gnfa[state, dest] <- Some(Union(r, transition))
                 | None -> 
                     gnfa[state, dest] <- Some transition
             ) transitions
@@ -50,6 +50,7 @@ let nfaToGNFAMap (nfa : NFA) : GNFA =
 (* Assumes that regex1 and regex2 are right associated Seqs *)
 let rec makeSeq (regex1 : ExtendedRegex) (regex2 : ExtendedRegex) : ExtendedRegex =
     match regex1, regex2 with
+    | Epsilon, Epsilon -> Seq(Epsilon, Epsilon)
     | Epsilon, r -> r
     | r, Epsilon -> r
     | Seq(r1, Epsilon), r2 -> Seq(r1, r2)

@@ -36,12 +36,12 @@ let rec isRecursive (nt : string) (regex : ExtendedRegex) : bool =
     | _ -> false
 
 (* removes tail nonterminal from a regex *)
-let rec removeTailNonterminal (regex : ExtendedRegex) : ExtendedRegex =
+let rec removeRecursiveTailNonterminal (regex : ExtendedRegex) (nt : string): ExtendedRegex =
     match regex with
-    | Seq(Nonterminal s, Epsilon) -> Epsilon
-    | Seq(r1, r2) -> Seq(r1, removeTailNonterminal r2)
-    | Union(r1, r2) -> Union(removeTailNonterminal r1, removeTailNonterminal r2)
-    | Nonterminal s -> Epsilon
+    | Seq(Nonterminal s, Epsilon) when s = nt -> Epsilon
+    | Seq(r1, r2) -> Seq(r1, removeRecursiveTailNonterminal r2 nt)
+    | Union(r1, r2) -> Union(removeRecursiveTailNonterminal r1 nt, removeRecursiveTailNonterminal r2 nt)
+    | Nonterminal s when s = nt -> Epsilon
     | _ -> regex
 
 let makeMoveTotal (dfa : DFA<State>) : DFA<State> =
@@ -135,7 +135,6 @@ let rec regexToNFARec (regex : ExtendedRegex) (grammar : Grammar) (alphabet : Al
         let startingState = nextID()
         let (sStart, sMap) = regexToNFARec r1 grammar alphabet endState
         let (tStart, tMap) = regexToNFARec r2 grammar alphabet endState
-
         (* combine the two maps into one *)
         let combinedMap = mapDisjointUnion sMap tMap
         (startingState, 
@@ -198,7 +197,7 @@ let rec regexToNFARec (regex : ExtendedRegex) (grammar : Grammar) (alphabet : Al
                 let nfaList = 
                     List.map (fun p ->
                         if isRecursive' p then
-                            let re = ZeroOrMore (removeTailNonterminal p)
+                            let re = ZeroOrMore (removeRecursiveTailNonterminal p s)
                             regexToNFARec re grammar alphabet startingState
                         else
                             regexToNFARec p grammar alphabet endState
@@ -295,21 +294,55 @@ let rec regexToNFARec (regex : ExtendedRegex) (grammar : Grammar) (alphabet : Al
     
     | Epsilon -> (endState, Map.empty)
 
+let rec attachToEnd (regex : ExtendedRegex) (attachee : ExtendedRegex) : ExtendedRegex =
+    match regex with
+    | Seq(r1, Epsilon) -> Seq(r1, attachee)
+    | Seq(r1, r2) -> Seq(r1, attachToEnd r2 attachee)
+    | Epsilon -> attachee
+    | _ -> Seq(regex, attachee)
+
+(* removes all Unions that can contain recursive nonterminals from an extended regular expression and returns a list of all the individual expressions *)
+let rec removeUnion (regex : ExtendedRegex) : ExtendedRegex list =
+    match regex with
+    | Union(r1, r2) ->
+        let r1list = removeUnion r1
+        let r2list = removeUnion r2
+        r1list @ r2list
+    | Seq(r1, r2) ->
+        let r1list = removeUnion r1
+        let r2list = removeUnion r2
+        List.concat
+        <| List.map (fun re1 ->
+            List.map (fun re2 ->
+                attachToEnd re1 re2
+            ) r2list
+        ) r1list
+    (* not needed to remove unions since they either cannot contain other expressions (Class, Nonterminal, Epsilon), 
+    or are not allowed to contain recursive unions (ZeroOrMore, REComplement, Intersection) *)
+    | _ -> [regex]
+
 let regexToNFA (grammar : Grammar) (regex : ExtendedRegex) (alphabet : Alphabet option) : NFA =
     let layers = checkGrammar grammar
+    
+    let grammarUnionRemoved = 
+        List.fold (fun acc (nt, re) ->
+            let re' = removeUnion re
+            let g = List.map (fun x -> (nt, x)) re'
+            acc @ g
+        ) [] grammar
+    
     (*let ntab =
         List.fold (fun acc nt ->
             let nfa = regexToNFARec (Nonterminal nt) (Grammar grammar) 0
             Map.add nt nfa acc
         ) Map.empty (List.concat layers)
-    printfn "%A" regex
-    printfn "%A" ntab*)
+    *)
     let alphabet' =
         match alphabet with
         | Some a -> a
         | None -> computeAlphabet regex grammar []
     let endState = nextID()
-    let (start, map) = regexToNFARec regex grammar alphabet' endState
+    let (start, map) = regexToNFARec regex grammarUnionRemoved alphabet' endState
 
     (start,
     Map.change endState (fun x ->
