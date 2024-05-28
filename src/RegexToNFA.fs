@@ -27,20 +27,20 @@ let nfaUnion (map1 : NFAMap) (map2 : NFAMap) : NFAMap =
     ) longer shorter
 
 (* given a regex and a nonterminal, the function returns true if there is a nonterminal in the tail position that is identical to the given nonterminal *)
-let rec isRecursive (nt : string) (regex : ExtendedRegex) : bool =
+let rec containsTailNT (nts : string list) (regex : ExtendedRegex) : string option =
     match regex with
-    | Seq(Nonterminal s, Epsilon) when s = nt -> true
-    | Seq(r1, r2) -> isRecursive nt r2
-    | Union(r1, r2) -> isRecursive nt r1 || isRecursive nt r2
-    | Nonterminal s when s = nt -> true
-    | _ -> false
+    | Seq(Nonterminal s, Epsilon) when List.contains s nts -> Some s
+    | Seq(r1, r2) -> containsTailNT nts r2
+    //| Union(r1, r2) -> containsTailNT nts r1 || containsTailNT nts r2
+    | Nonterminal s when List.contains s nts -> Some s
+    | _ -> None
 
 (* removes tail nonterminal from a regex *)
-let rec removeRecursiveTailNonterminal (regex : ExtendedRegex) (nt : string): ExtendedRegex =
+let rec removeRecursiveTailNonterminal (regex : ExtendedRegex) (nt : string) : ExtendedRegex =
     match regex with
     | Seq(Nonterminal s, Epsilon) when s = nt -> Epsilon
     | Seq(r1, r2) -> Seq(r1, removeRecursiveTailNonterminal r2 nt)
-    | Union(r1, r2) -> Union(removeRecursiveTailNonterminal r1 nt, removeRecursiveTailNonterminal r2 nt)
+    //| Union(r1, r2) -> Union(removeRecursiveTailNonterminal r1 nt, removeRecursiveTailNonterminal r2 nt)
     | Nonterminal s when s = nt -> Epsilon
     | _ -> regex
 
@@ -129,12 +129,24 @@ let rec computeAlphabet (regex : ExtendedRegex) (g: Grammar) (visited : string l
     | Intersection (r1, r2) -> Set.union (computeAlphabet r1 g visited) (computeAlphabet r2 g visited)
     | Epsilon -> Set.empty
 
-let rec regexToNFARec (regex : ExtendedRegex) (grammar : Grammar) (alphabet : Alphabet) (endState : State) : (State * NFAMap) =
+let renumber (start : State) (nfaMap : NFAMap) (endState : State): State * NFAMap =
+    let keys = Map.keys nfaMap
+    let stateMap = Map.ofSeq <| Seq.map (fun key -> (key, nextID())) keys
+    let stateMap' = Map.add 0 endState stateMap
+    let renumberedMap =
+        Map.fold (fun acc fromState (ts, isAccepting) ->
+            let s = Map.find fromState stateMap'
+            let ts' = Set.map (fun (symbol, toState) -> (symbol, Map.find toState stateMap')) ts
+            Map.add s (ts', isAccepting) acc
+        ) Map.empty nfaMap
+    (Map.find start stateMap, renumberedMap)
+
+let rec regexToNFARec (regex : ExtendedRegex) (ntInfo : NTInfo) (alphabet : Alphabet) (endState : State) : (State * NFAMap) =
     match regex with
     | Union (r1, r2) ->
         let startingState = nextID()
-        let (sStart, sMap) = regexToNFARec r1 grammar alphabet endState
-        let (tStart, tMap) = regexToNFARec r2 grammar alphabet endState
+        let (sStart, sMap) = regexToNFARec r1 ntInfo alphabet endState
+        let (tStart, tMap) = regexToNFARec r2 ntInfo alphabet endState
         (* combine the two maps into one *)
         let combinedMap = mapDisjointUnion sMap tMap
         (startingState, 
@@ -142,8 +154,8 @@ let rec regexToNFARec (regex : ExtendedRegex) (grammar : Grammar) (alphabet : Al
         Map.add startingState ((Set.ofList [(None, sStart); (None, tStart)]), false) combinedMap)
 
     | Seq (r1, r2) ->
-        let (tStart, tMap) = regexToNFARec r2 grammar alphabet endState
-        let (sStart, sMap) = regexToNFARec r1 grammar alphabet tStart
+        let (tStart, tMap) = regexToNFARec r2 ntInfo alphabet endState
+        let (sStart, sMap) = regexToNFARec r1 ntInfo alphabet tStart
         (sStart,
         mapDisjointUnion sMap tMap)
 
@@ -156,73 +168,74 @@ let rec regexToNFARec (regex : ExtendedRegex) (grammar : Grammar) (alphabet : Al
             (* create a map containing these transitions *)
             let map = Map.ofList [(startingState, (transitions, false))]
             (startingState, map)
-        | Complement content -> regexToNFARec (Class(ClassContent(Set.difference alphabet content)))grammar alphabet endState
+        | Complement content -> regexToNFARec (Class(ClassContent(Set.difference alphabet content))) ntInfo alphabet endState
 
     | ZeroOrMore r ->
         let state = nextID()
-        let (start, map) = regexToNFARec r grammar alphabet state
+        let (start, map) = regexToNFARec r ntInfo alphabet state
         (state,
         Map.add state ((Set.ofList [(None, endState); (None, start)]), false) map)
 
     | Nonterminal s ->
-        (*match transitions with
-        | NTab ntab ->
-            let (start, map, alphabet) = Map.find s ntab
-            let map' =
-                Map.map (fun _ (ts, isAccepting) ->
-                    let ts' =
-                        Set.map (fun (symbol, state) ->
-                            if state = 0 then
-                                (symbol, endState)
-                            else
-                                (symbol, state)
-                        ) ts
-                    (ts', isAccepting)
-                ) map
-
-            (start, map', alphabet)
-        *)
-        //| Grammar grammar ->
-
+        let (grammar, ntStart, templates, layers) = ntInfo
         let productions = List.map (fun (nt, re) -> re) <| List.filter (fun (nt, re) -> nt = s) grammar
         if List.isEmpty productions then
             raise (MyError ("There are no productions for nonterminal #" + s))
-        else
-            let isRecursive' = isRecursive s
 
-            (* if the nonterminal has a recursive production *)
-            if List.exists isRecursive' productions then
-                let startingState = nextID()
+        (* lookup in templates *)
+        match findNTAssociations s ntStart templates with
+        (* if NT exists in templates *)
+        | Some (start, nfaMap) ->
+            (* renumber *)
+            let keys = Map.keys nfaMap
+            let stateMap = Map.ofSeq <| Seq.map (fun key -> (key, nextID())) keys
+            let stateMap' = Map.add 0 endState stateMap
+            let renumberedMap =
+                Map.fold (fun acc fromState (ts, isAccepting) ->
+                    let s = Map.find fromState stateMap'
+                    let ts' = Set.map (fun (symbol, toState) -> (symbol, Map.find toState stateMap')) ts
+                    Map.add s (ts', isAccepting) acc
+                ) Map.empty nfaMap
+            (Map.find start stateMap, renumberedMap)
+        (* if NT does not exist in templates - create NFA *)
+        | None ->
+            let startingState = Map.find s ntStart
+            let layer = List.find (fun layer -> List.contains s layer) layers
 
-                let nfaList = 
-                    List.map (fun p ->
-                        if isRecursive' p then
-                            let re = ZeroOrMore (removeRecursiveTailNonterminal p s)
-                            regexToNFARec re grammar alphabet startingState
-                        else
-                            regexToNFARec p grammar alphabet endState
-                    ) productions
+            let nfaList =
+                List.map (fun p ->
+                    match containsTailNT layer p with
+                    | Some nt ->
+                        let re = removeRecursiveTailNonterminal p nt
+                        let toState = Map.find nt ntStart
+                        let (start, nfaMap) = regexToNFARec re ntInfo alphabet toState
+                        let nfaMap' =
+                            Map.map (fun state (ts, isAccepting) ->
+                                if isAccepting then
+                                    (Set.add (None, endState) ts, false)
+                                else
+                                    (ts, isAccepting)
+                            ) nfaMap
+                        (start, nfaMap')
+                    | None -> regexToNFARec p ntInfo alphabet endState
+                ) productions
 
-                let combinedMap = 
-                    List.fold (fun accMap (start, map) ->
-                        (nfaUnion accMap map)
-                    ) Map.empty nfaList
+            let transitionsToProductions =
+                List.fold (fun acc (start, map) ->
+                    Set.union acc (Set.ofList [None, start])
+                ) Set.empty nfaList
 
-                let transitionsToNFAs = 
-                    List.fold (fun acc (start, map) ->
-                        Set.union acc (Set.ofList [None, start])
-                    ) Set.empty nfaList
+            let mapToProductions = Map.ofList ([(startingState, (transitionsToProductions, false))])
 
-                let mapToNFAs = Map.ofList ([(startingState, (transitionsToNFAs, false))])
+            let combinedProductions = 
+                List.fold (fun accMap (start, map) ->
+                    nfaUnion accMap map
+                ) Map.empty nfaList
 
-                (startingState,
-                nfaUnion combinedMap mapToNFAs)
-            else
-                let unionProductions = List.fold (fun acc p -> Union(acc, p)) (List.head productions) (List.tail productions)
-                regexToNFARec unionProductions grammar alphabet endState
+            (startingState, nfaUnion combinedProductions mapToProductions)
 
     | REComplement r ->
-        let (nfaStart, nfaMap) = regexToNFARec r grammar alphabet endState
+        let (nfaStart, nfaMap) = regexToNFARec r ntInfo alphabet endState
         let mapWithAccepting = addAccepting endState nfaMap
         let dfa = nfaToDFA (nfaStart, mapWithAccepting, alphabet)
         let (totalStart, totalMap, _) = makeMoveTotal dfa
@@ -246,8 +259,8 @@ let rec regexToNFARec (regex : ExtendedRegex) (grammar : Grammar) (alphabet : Al
         (start, mapAcceptingToEnd)
 
     | Intersection (r1, r2) ->
-        let (nfaStart1, nfaMap1) = regexToNFARec r1 grammar alphabet endState
-        let (nfaStart2, nfaMap2) = regexToNFARec r2 grammar alphabet endState
+        let (nfaStart1, nfaMap1) = regexToNFARec r1 ntInfo alphabet endState
+        let (nfaStart2, nfaMap2) = regexToNFARec r2 ntInfo alphabet endState
 
         (* construct DFA for r1 *)
         let nfaMap1' = addAccepting endState nfaMap1
@@ -323,31 +336,70 @@ let rec removeUnion (regex : ExtendedRegex) : ExtendedRegex list =
 
 let regexToNFA (grammar : Grammar) (regex : ExtendedRegex) (alphabet : Alphabet option) : NFA =
     let layers = checkGrammar grammar
-    
+
     let grammarUnionRemoved = 
         List.fold (fun acc (nt, re) ->
             let re' = removeUnion re
             let g = List.map (fun x -> (nt, x)) re'
             acc @ g
         ) [] grammar
-    
-    (*let ntab =
-        List.fold (fun acc nt ->
-            let nfa = regexToNFARec (Nonterminal nt) (Grammar grammar) 0
-            Map.add nt nfa acc
-        ) Map.empty (List.concat layers)
-    *)
+
     let alphabet' =
         match alphabet with
         | Some a -> a
         | None -> computeAlphabet regex grammar []
-    let endState = nextID()
-    let (start, map) = regexToNFARec regex grammarUnionRemoved alphabet' endState
 
-    (start,
-    Map.change endState (fun x ->
-        match x with
-        | Some (transitions, isAccepting) -> Some (transitions, isAccepting)
-        | None -> Some (Set.empty, true)
-    ) map,
-    alphabet')
+    (* 
+    Create a template NFA for every layer. Each NT has its own starting state in the NFA.
+    1. for every layer
+        1.1. create starting state for each NT
+        1.2. for each NT
+            1.2.1. convert its productions to NFA
+            1.2.2. add layer NFA to templates and save which nt map to which starting states
+
+    convert:
+    1. if no productions then stop
+    2. if nt exists in templates then renumber and use
+    2.1 set transitions to 0 to endstate
+    3. if any production has nt in same layer then remove and convert with endstate being the state associated with that nt
+    3.1 set accepting to be rejecting and make them go to actual endstate
+    4. combine maps for all productions
+    5. add transitions from from nt starting state to production starting states
+    *)
+
+    let (ntStart, templates) =
+        (* for every layer *)
+        List.fold (fun (ntStartAcc, templatesAcc) layer ->
+            (* 1.1 create starting state for each NT *)
+            let ntStart = Map.ofList <| List.map (fun nt -> (nt, nextID())) layer
+            let ntStart' = mapDisjointUnion ntStart ntStartAcc
+
+            (* 1.2 for each NT *)
+            let map =
+                List.fold (fun acc nt ->
+                    (* 1.2.1 convert to NFA *)
+                    let (start, nfaMap) = regexToNFARec (Nonterminal nt) (grammarUnionRemoved, ntStart', templatesAcc, layers) alphabet' 0
+                    nfaUnion acc nfaMap
+                ) Map.empty layer
+            
+            (* 1.2.2 add sub nfa to map *)
+            let templates' = 
+                Map.change map (fun x ->
+                    match x with
+                    | Some nts -> raise (MyError "duplicate NFA in layer")
+                    | None -> Some layer
+                ) templatesAcc
+
+            (ntStart', templates')
+        ) (Map.empty, Map.empty) layers
+    
+    let endState = nextID()
+    let (start, map) = regexToNFARec regex (grammarUnionRemoved, ntStart, templates, layers) alphabet' endState
+    let mapAccepting =
+        Map.change endState (fun x ->
+            match x with
+            | Some (ts, isAccepting) -> Some (ts, isAccepting)
+            | None -> Some (Set.empty, true)
+        ) map
+
+    (start, mapAccepting, alphabet')

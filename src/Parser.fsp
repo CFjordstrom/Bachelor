@@ -44,12 +44,12 @@ let parse_error_rich =
 %type <AbSyn.Class> Class
 %type <AbSyn.ClassContent> ClassContent
 %type <AbSyn.ClassContent> ClassRange
-%type <AbSyn.Grammar> Nfa
+%type <AbSyn.Grammar> Automata
 %type <AbSyn.Grammar> Grammar
 %type <string> Nonterminal
 
 %%
-Start   :  Nfa SLASH ExtendedRegex SLASH EOF { ($1, $3) }
+Start   :  Automata ExtendedRegex EOF { ($1, $2) }
 ;
 
 ExtendedRegex   : Seq { $1 }
@@ -90,7 +90,7 @@ ClassRange      : CHARLIT { Set.singleton $1 }
                 | CHARLIT DASH CHARLIT { Set.ofList [$1..$3] }
 ;
 
-Nfa     : { [] }
+Automata     : { [] }
         | LCURLY Grammar RCURLY { $2 }
 ;
 

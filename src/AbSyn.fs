@@ -1,7 +1,7 @@
 module AbSyn
 (*
 
-Start    -> '/' NFA Regex '/'
+Start    -> Automata Regex
 
 Regex  -> Seq
         | Regex '|' Regex
@@ -28,17 +28,17 @@ Class  -> '.'
         | '[' ClassContent ']'
         | '[' '^' ClassContent ']'
 
-ClassContent -> epsilon
+ClassContent -> Epsilon
               | ClassRange ClassContent
 
 ClassRange  -> any char
             | any char '-' any char
 
-NFA    -> epsilon
-       -> { Transitions }
+Automata    -> Epsilon
+             | { Grammar }
 
-Transitions    -> Nonterminal '->' Regex ';' NFA
-                | epsilon
+Grannar    -> Nonterminal '->' Regex ';' Grammar
+            | Epsilon
 
 Nonterminal   -> '#' *any alphanumerical character*
 
@@ -63,8 +63,6 @@ type DFA<'State when 'State : comparison> = 'State * Map<'State, (Map<char, 'Sta
 (* dfa state maps to a set of nfa states, a bool indicating if the dfa state is marked or not, and the transitions that belong to that dfa state *)
 type WorkList = Map<State, (Set<State> * bool)>
 
-type Grammar = (string * ExtendedRegex) list
-
 and ExtendedRegex =
     Union of ExtendedRegex * ExtendedRegex
   | Seq of ExtendedRegex * ExtendedRegex
@@ -77,11 +75,20 @@ and ExtendedRegex =
 
 type GNFA = ExtendedRegex option[,]
 
-(*
-type NTab = Map<string, NFA>
-type Transitions =
-    Grammar of Grammar
-  | NTab of NTab
-*)
+type Layers = (string list) list
+
+(* map from NT to starting state and the layer's map *)
+type NTStart = Map<string, State>
+type Templates = Map<NFAMap, string list>
+
+type Grammar = (string * ExtendedRegex) list
+
+type NTInfo = Grammar * NTStart * Templates * Layers
+
+(* given NT and a map from NT to start state and map from NFA to lists of NT's, return starting state and NFA map *)
+let findNTAssociations (nt : string) (ntStart : NTStart) (templates : Templates) : (State * NFAMap) option = 
+    match Map.tryFind nt ntStart, Map.tryFindKey (fun map nts -> List.contains nt nts) templates with
+    | Some start, Some nfaMap -> Some (start, nfaMap)
+    | _ -> None
 
 type RegLang = Grammar * ExtendedRegex

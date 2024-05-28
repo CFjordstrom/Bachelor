@@ -67,9 +67,8 @@ and ppAtom (atom : ExtendedRegex) : string  =
 let ppRegex (regex : ExtendedRegex) : string =
     match regex with
     | Epsilon ->
-        "/[]/"
-    | _ ->
-        "/" + ppRegex' regex + "/"
+        "[]"
+    | _ -> ppRegex' regex
 
 let ppNFA (nfa : NFA) : string =
     let (start, map, alphabet) = nfa

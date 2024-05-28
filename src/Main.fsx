@@ -79,7 +79,7 @@ let rec containsComplement (grammar : Grammar) (regex: ExtendedRegex) (visited :
 
 let rec convertAndPrint (option : string) (grammar : Grammar) (regex: ExtendedRegex) (alphabet : Alphabet option) : unit =
     match containsComplement grammar regex [], alphabet with
-    | true, None -> printfn "The regular language contains complement of an expression '!', complement of a class '^' or all characters '.', so an alphabet must be provided using -alphabet <alphabet>"
+    | true, None -> printfn "The regular language contains complement of an expression '!', complement of a class '^' or \"all characters\" '.', so an alphabet must be provided using -alphabet <alphabet>"
     | false, Some a -> convertAndPrint option grammar regex None
     | _, _ ->
         match option with
@@ -132,7 +132,7 @@ let main (args : string[]) : int =
         1
     | err ->
         if err.Message = "The given key was not present in the dictionary." then
-            printfn "%s" "Unexpected error during conversion"
+            printfn "%A" err
         else
             printfn "%s" err.Message
         System.Environment.Exit 1
