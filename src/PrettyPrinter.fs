@@ -4,7 +4,7 @@ open AbSyn
 
 let ppChar (c : char) : string =
     match c with
-    | '/' | '|' | '*' | '+' | '?' | '{' | '}' | '(' | ')' | '\\' | '[' | ']' | '-' | '.' | ' ' -> "\\" + string c
+    | '|' | '*' | '+' | '?' | '{' | '}' | '(' | ')' | '\\' | '[' | ']' | '-' | '.' | ' ' | '&' | '!' -> "\\" + string c
     | _ -> string c
 
 let rec splitIntoConsecutiveChars (acc : (char * char) list) (current : char list) (remaining : char list) : (char * char) list =
@@ -114,7 +114,7 @@ let ppNFA (nfa : NFA) : string =
         | false, 0 -> acc + "#" + string fromState + " -> [];\n"
         | false, _ -> acc + "#" + string fromState + " -> " + transition + ";\n"
     ) "" map
-    + "}\n" + "/#" + string start + "/"
+    + "}\n#" + string start
 
 let ppDFA (dfa : DFA<State>) : string =
     let (start, map, alphabet) = dfa
@@ -154,4 +154,4 @@ let ppDFA (dfa : DFA<State>) : string =
         | false, 0 -> acc + "#" + string fromState + " -> [];\n"
         | false, _ -> acc + "#" + string fromState + " -> " + transition + ";\n"
     ) "" map
-    + "}\n" + "/#" + string start + "/"
+    + "}\n#" + string start

@@ -41,7 +41,6 @@ rule Token = parse
     | '?'                   { Parser.QMARK }
     | '('                   { Parser.LPAR }
     | ')'                   { Parser.RPAR }
-    | '/'                   { Parser.SLASH }
     | '-'                   { Parser.DASH }
     | '.'                   { Parser.DOT }
     | '['                   { Parser.LBRACKET }
@@ -56,7 +55,7 @@ rule Token = parse
                                 let str = Encoding.UTF8.GetString(lexbuf.Lexeme)
                                 Parser.NONTERMINAL (str.[1..(String.length str - 1)])
                             }
-    | [^ '/' '|' '*' '+' '?' '{' '}' '(' ')' '[' ']' '-' '.' '\\' '#' '&' '!']
+    | [^ '|' '*' '+' '?' '{' '}' '(' ')' '[' ']' '-' '.' '\\' '#' '&' '!']
                             { 
                                 let str = Encoding.UTF8.GetString(lexbuf.Lexeme)
                                 Parser.CHARLIT (str.[0])

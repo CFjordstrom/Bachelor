@@ -78,7 +78,7 @@ let rec constructProduct (dfa1 : DFA<State>) (dfa2 : DFA<State>) : DFA<State * S
     let keys1 = Map.keys map1
     let keys2 = Map.keys map2
     let states = Seq.collect (fun x -> x) <| Seq.map (fun x -> Seq.map (fun y -> (x, y)) keys2) keys1
-    
+
     let productMap =
         (* for every pair for states *)
         Seq.fold (fun acc (s1, s2) ->
@@ -217,7 +217,8 @@ let rec regexToNFARec (regex : ExtendedRegex) (ntInfo : NTInfo) (alphabet : Alph
                                     (ts, isAccepting)
                             ) nfaMap
                         (start, nfaMap')
-                    | None -> regexToNFARec p ntInfo alphabet endState
+                    | None ->
+                        regexToNFARec p ntInfo alphabet endState
                 ) productions
 
             let transitionsToProductions =
@@ -232,7 +233,9 @@ let rec regexToNFARec (regex : ExtendedRegex) (ntInfo : NTInfo) (alphabet : Alph
                     nfaUnion accMap map
                 ) Map.empty nfaList
 
-            (startingState, nfaUnion combinedProductions mapToProductions)
+            let combined = nfaUnion combinedProductions mapToProductions
+
+            (startingState, combined)
 
     | REComplement r ->
         let (nfaStart, nfaMap) = regexToNFARec r ntInfo alphabet endState
@@ -335,7 +338,7 @@ let rec removeUnion (regex : ExtendedRegex) : ExtendedRegex list =
     | _ -> [regex]
 
 let regexToNFA (grammar : Grammar) (regex : ExtendedRegex) (alphabet : Alphabet option) : NFA =
-    let layers = checkGrammar grammar
+    let layers = stratifyGrammar grammar
 
     let grammarUnionRemoved = 
         List.fold (fun acc (nt, re) ->
@@ -392,7 +395,7 @@ let regexToNFA (grammar : Grammar) (regex : ExtendedRegex) (alphabet : Alphabet 
 
             (ntStart', templates')
         ) (Map.empty, Map.empty) layers
-    
+
     let endState = nextID()
     let (start, map) = regexToNFARec regex (grammarUnionRemoved, ntStart, templates, layers) alphabet' endState
     let mapAccepting =

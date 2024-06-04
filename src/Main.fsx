@@ -96,9 +96,9 @@ let rec runAndPrint (grammar : Grammar) (regex: ExtendedRegex) (input : string) 
     | _, _ ->
         let dfa = minimiseDFA << nfaToDFA <| regexToNFA grammar regex alphabet
         if runDFA input dfa then
-            printfn "The input string \"%s\" was accepted by the regular language represented by %s" input (ppRegex <| xfaToRegex dfa)
+            printfn "Accepted"
         else
-            printfn "The input string \"%s\" was rejected by the regular language represented by %s" input (ppRegex <| xfaToRegex dfa)
+            printfn "Rejected"
 
 [<EntryPoint>]
 let main (args : string[]) : int =
