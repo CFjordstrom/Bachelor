@@ -1,0 +1,12 @@
+{
+#letter -> [a-z]; 
+#digit -> [0-9];
+#word -> #letter (#letter | #digit)*;
+#num -> #digit+;
+#atom -> #word;
+#atom -> #num;
+#exp -> #atom #rest;
+#rest -> ;
+#rest -> #atom #rest;
+}
+#atom
