@@ -36,7 +36,7 @@ let makeMoveTotal (dfa : DFA<State>) : DFA<State> =
 
 (* takes a worklist consisting of two groups: the accepting and rejecting states, the dfa and an empty map
    and returns the minimised dfa *)
-let rec constructMinimalDFA (workList : WorkList) (dfa : DFA<_>) : DFA<_> =
+let rec constructMinimalDFA (workList : WorkList) (dfa : DFA<State>) : DFA<State> =
     (*
     1. stop if all groups are singleton or marked
     2. pick unmarked and non-singleton group
@@ -140,7 +140,7 @@ let rec constructMinimalDFA (workList : WorkList) (dfa : DFA<_>) : DFA<_> =
 
             constructMinimalDFA newWorkList dfa
 
-let minimiseDFA (dfa : DFA<_>) : DFA<_> =
+let minimiseDFA (dfa : DFA<State>) : DFA<State> =
     let (dfaStart, dfaMap, alphabet) = makeMoveTotal dfa
     (* split dfa into accepting and rejecting states *)
     let (accepting, rejecting) = 

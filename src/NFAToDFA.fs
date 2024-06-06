@@ -52,7 +52,7 @@ let move (states : Set<State>) (symbol : char) (nfa : NFA) : Set<State> =
     let statesReachableFromTransitionOnSymbol = findReachableStatesFromTransitionOnSymbol states symbol nfa 
     epsilonClosures statesReachableFromTransitionOnSymbol nfa
 
-let rec constructSubset (workList : WorkList) (nfa : NFA) (transitionMap : Map<State, Map<char, State>>): (WorkList * Map<State, Map<char, State>>) =
+let rec constructSubset (workList : WorkList) (nfa : NFA) (transitionMap : Map<State, Map<char, State>>) : (WorkList * Map<State, Map<char, State>>) =
     (*
     1. while there are unmarked states in the worklist
     2. pick an unmarked element from the worklist and mark it

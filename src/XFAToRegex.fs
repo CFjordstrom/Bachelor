@@ -97,7 +97,6 @@ let kleenesAlgorithm (gnfa : GNFA) : ExtendedRegex =
                         ) outgoing
             ) incoming
     ) gnfa
-
     match gnfa[0, len - 1] with
     | Some r -> r
     | None -> Epsilon
