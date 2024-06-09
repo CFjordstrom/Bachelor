@@ -63,17 +63,17 @@ type DFA<'State when 'State : comparison> = 'State * Map<'State, (Map<char, 'Sta
 (* dfa state maps to a set of nfa states, a bool indicating if the dfa state is marked or not, and the transitions that belong to that dfa state *)
 type WorkList = Map<State, (Set<State> * bool)>
 
-and ExtendedRegex =
-    Union of ExtendedRegex * ExtendedRegex
-  | Seq of ExtendedRegex * ExtendedRegex
+and Regex =
+    Union of Regex * Regex
+  | Seq of Regex * Regex
   | Class of Class
-  | ZeroOrMore of ExtendedRegex
+  | ZeroOrMore of Regex
   | Nonterminal of string
-  | REComplement of ExtendedRegex
-  | Intersection of ExtendedRegex * ExtendedRegex
+  | REComplement of Regex
+  | Intersection of Regex * Regex
   | Epsilon
 
-type GNFA = ExtendedRegex option[,]
+type GNFA = Regex option[,]
 
 type Layers = (string list) list
 
@@ -81,7 +81,7 @@ type Layers = (string list) list
 type NTStart = Map<string, State>
 type Templates = Map<NFAMap, string list>
 
-type Grammar = (string * ExtendedRegex) list
+type Grammar = (string * Regex) list
 
 type NTInfo = Grammar * NTStart * Templates * Layers
 
@@ -91,4 +91,4 @@ let findNTAssociations (nt : string) (ntStart : NTStart) (templates : Templates)
     | Some start, Some nfaMap -> Some (start, nfaMap)
     | _ -> None
 
-type RegLang = Grammar * ExtendedRegex
+type RegLang = Grammar * Regex

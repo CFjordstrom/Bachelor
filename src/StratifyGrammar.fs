@@ -7,7 +7,7 @@ let format (set : Set<string>) : string =
     let formatted = Set.map (fun s -> "#" + s) set
     String.concat ", " formatted
 
-let rec getDependencies' (nts : Set<string>) (re : ExtendedRegex) : Set<string> * Set<string> =
+let rec getDependencies' (nts : Set<string>) (re : Regex) : Set<string> * Set<string> =
     match re with
     | Union(r1, r2) ->
         let (init1, tail1) = getDependencies' nts r1
@@ -44,7 +44,7 @@ let rec getDependencies' (nts : Set<string>) (re : ExtendedRegex) : Set<string> 
         if Set.exists (fun nt -> Set.contains nt all) nts then
             raise (MyError ("Recursive nonterminal found in \"zero or more\" expression " + ppRegex re + " in the production(s) of " + format nts))
         else
-            (init, tail)
+            (all, Set.empty)
 
     | Nonterminal s -> (Set.empty, Set.singleton s)
 
@@ -54,7 +54,7 @@ let rec getDependencies' (nts : Set<string>) (re : ExtendedRegex) : Set<string> 
         if Set.exists (fun nt -> Set.contains nt all) nts then
             raise (MyError ("Recursive nonterminal found in complement expression " + ppRegex re + " in the production(s) of " + format nts))
         else
-            (init, tail)
+            (all, Set.empty)
 
     | Intersection(r1, r2) ->
         let (init1, tail1) = getDependencies' nts r1
@@ -65,7 +65,7 @@ let rec getDependencies' (nts : Set<string>) (re : ExtendedRegex) : Set<string> 
         if Set.exists (fun nt -> Set.contains nt all) nts then
             raise (MyError ("Recursive nonterminal found in intersection expression " + ppRegex (Intersection(r1, r2)) + " in the production(s) of " + format nts))
         else
-            (init, tail)
+            (all, Set.empty)
     
     | Epsilon -> (Set.empty, Set.empty)
 

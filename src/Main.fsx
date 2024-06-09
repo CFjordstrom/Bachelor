@@ -57,7 +57,7 @@ let parseRegLang (input : string) : RegLang =
     else
         failwith "Invalid input"
 
-let rec containsComplement (grammar : Grammar) (regex: ExtendedRegex) (visited : string list) =
+let rec containsComplement (grammar : Grammar) (regex: Regex) (visited : string list) =
     match regex with
     | Union (r1, r2) -> containsComplement grammar r1 visited || containsComplement grammar r2 visited
     | Seq (r1, r2) -> containsComplement grammar r1 visited || containsComplement grammar r2 visited
@@ -77,7 +77,7 @@ let rec containsComplement (grammar : Grammar) (regex: ExtendedRegex) (visited :
     | Intersection (r1, r2) -> containsComplement grammar r1 visited || containsComplement grammar r2 visited
     | Epsilon -> false
 
-let rec convertAndPrint (option : string) (grammar : Grammar) (regex: ExtendedRegex) (alphabet : Alphabet option) : unit =
+let rec convertAndPrint (option : string) (grammar : Grammar) (regex: Regex) (alphabet : Alphabet option) : unit =
     match containsComplement grammar regex [], alphabet with
     | true, None -> printfn "The regular language contains complement of an expression '!', complement of a class '^' or \"all characters\" '.', so an alphabet must be provided using -alphabet <alphabet>"
     | false, Some a -> convertAndPrint option grammar regex None
@@ -89,7 +89,7 @@ let rec convertAndPrint (option : string) (grammar : Grammar) (regex: ExtendedRe
         | "-nfa" -> printfn "%s" (ppNFA <| regexToNFA grammar regex alphabet)
         | _ -> printfn "%s" usage
 
-let rec runAndPrint (grammar : Grammar) (regex: ExtendedRegex) (input : string) (alphabet : Alphabet option) : unit =
+let rec runAndPrint (grammar : Grammar) (regex: Regex) (input : string) (alphabet : Alphabet option) : unit =
     match containsComplement grammar regex [], alphabet with
     | true, None -> printfn "The regular language contains complement so an alphabet must be provided using -alphabet <alphabet>"
     | false, Some a -> runAndPrint grammar regex input None

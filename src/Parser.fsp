@@ -31,30 +31,31 @@ let parse_error_rich =
 %token ARROW SEMICOLON
 %token EOF
 
-%left PIPE AMPERSAND
+%left PIPE
+%left AMPERSAND
 
 %start Start
 %start ClassContent
 %type <AbSyn.RegLang> Start
-%type <AbSyn.ExtendedRegex> ExtendedRegex
-%type <AbSyn.ExtendedRegex> Seq
-%type <AbSyn.ExtendedRegex> Rep
-%type <AbSyn.ExtendedRegex> Atom
-%type <AbSyn.ExtendedRegex> Char
+%type <AbSyn.Regex> Regex
+%type <AbSyn.Regex> Seq
+%type <AbSyn.Regex> Rep
+%type <AbSyn.Regex> Atom
+%type <AbSyn.Regex> Char
 %type <AbSyn.Class> Class
 %type <AbSyn.ClassContent> ClassContent
 %type <AbSyn.ClassContent> ClassRange
-%type <AbSyn.Grammar> Automata
 %type <AbSyn.Grammar> Grammar
+%type <AbSyn.Grammar> Productions
 %type <string> Nonterminal
 
 %%
-Start   :  Automata ExtendedRegex EOF { ($1, $2) }
+Start   :  Grammar Regex EOF { ($1, $2) }
 ;
 
-ExtendedRegex   : Seq { $1 }
-                | ExtendedRegex PIPE ExtendedRegex { Union($1, $3) }
-                | ExtendedRegex AMPERSAND ExtendedRegex { Intersection($1, $3) }
+Regex   : Seq { $1 }
+                | Regex PIPE Regex { Union($1, $3) }
+                | Regex AMPERSAND Regex { Intersection($1, $3) }
 ;
 
 Seq     : { Epsilon }
@@ -69,7 +70,7 @@ Rep     : Atom { $1 }
 ;
 
 Atom    : Char { $1 }
-        | LPAR ExtendedRegex RPAR { $2 }
+        | LPAR Regex RPAR { $2 }
         | Class { Class($1) }
         | Nonterminal { Nonterminal($1) }
 ;
@@ -90,12 +91,12 @@ ClassRange      : CHARLIT { Set.singleton $1 }
                 | CHARLIT DASH CHARLIT { Set.ofList [$1..$3] }
 ;
 
-Automata     : { [] }
-        | LCURLY Grammar RCURLY { $2 }
+Grammar     : { [] }
+        | LCURLY Productions RCURLY { $2 }
 ;
 
-Grammar     : { [] }
-                | Nonterminal ARROW ExtendedRegex SEMICOLON Grammar { ($1, $3) :: $5 }
+Productions     : { [] }
+                | Nonterminal ARROW Regex SEMICOLON Productions { ($1, $3) :: $5 }
 
 Nonterminal     : NONTERMINAL {$1}
 

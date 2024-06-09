@@ -1,12 +1,7 @@
 {
-#letter -> [a-z]; 
-#digit -> [0-9];
-#word -> #letter (#letter | #digit)*;
-#num -> #digit+;
-#atom -> #word;
-#atom -> #num;
-#exp -> #atom #rest;
-#rest -> ;
-#rest -> #atom #rest;
+#1 -> b #2 | a #3;
+#2 -> ();
+#3 -> b #2 | a #4 | ();
+#4 -> b #2 | a #4;
 }
-#atom
+#1

@@ -2,7 +2,6 @@ module RegexToNFA
 
 open AbSyn
 open NFAToDFA
-//open MinimiseDFA
 open DFAToNFA
 open CheckGrammar
 
@@ -27,7 +26,7 @@ let nfaUnion (map1 : NFAMap) (map2 : NFAMap) : NFAMap =
     ) longer shorter
 
 (* given a regex and a nonterminal, the function returns true if there is a nonterminal in the tail position that is identical to the given nonterminal *)
-let rec containsTailNT (nts : string list) (regex : ExtendedRegex) : string option =
+let rec containsTailNT (nts : string list) (regex : Regex) : string option =
     match regex with
     | Seq(Nonterminal s, Epsilon) when List.contains s nts -> Some s
     | Seq(r1, r2) -> containsTailNT nts r2
@@ -36,7 +35,7 @@ let rec containsTailNT (nts : string list) (regex : ExtendedRegex) : string opti
     | _ -> None
 
 (* removes tail nonterminal from a regex *)
-let rec removeRecursiveTailNonterminal (regex : ExtendedRegex) (nt : string) : ExtendedRegex =
+let rec removeRecursiveTailNonterminal (regex : Regex) (nt : string) : Regex =
     match regex with
     | Seq(Nonterminal s, Epsilon) when s = nt -> Epsilon
     | Seq(r1, r2) -> Seq(r1, removeRecursiveTailNonterminal r2 nt)
@@ -109,7 +108,7 @@ let addAccepting (endState : State) (nfa : NFAMap) : NFAMap =
         | None -> Some (Set.empty, true)
     ) nfa
 
-let rec computeAlphabet (regex : ExtendedRegex) (g: Grammar) (visited : string list) : Set<char> =
+let rec computeAlphabet (regex : Regex) (g: Grammar) (visited : string list) : Set<char> =
     match regex with
     | Union (r1, r2) -> Set.union (computeAlphabet r1 g visited) (computeAlphabet r2 g visited)
     | Seq (r1, r2) -> Set.union (computeAlphabet r1 g visited) (computeAlphabet r2 g visited)
@@ -141,7 +140,7 @@ let renumber (start : State) (nfaMap : NFAMap) (endState : State): State * NFAMa
         ) Map.empty nfaMap
     (Map.find start stateMap, renumberedMap)
 
-let rec regexToNFARec (regex : ExtendedRegex) (ntInfo : NTInfo) (alphabet : Alphabet) (endState : State) : (State * NFAMap) =
+let rec regexToNFARec (regex : Regex) (ntInfo : NTInfo) (alphabet : Alphabet) (endState : State) : (State * NFAMap) =
     match regex with
     | Union (r1, r2) ->
         let startingState = nextID()
@@ -233,8 +232,8 @@ let rec regexToNFARec (regex : ExtendedRegex) (ntInfo : NTInfo) (alphabet : Alph
                     nfaUnion accMap map
                 ) Map.empty nfaList
 
-            let combined = nfaUnion combinedProductions mapToProductions
 
+            let combined = nfaUnion combinedProductions mapToProductions
             (startingState, combined)
 
     | REComplement r ->
@@ -310,7 +309,7 @@ let rec regexToNFARec (regex : ExtendedRegex) (ntInfo : NTInfo) (alphabet : Alph
     
     | Epsilon -> (endState, Map.empty)
 
-let rec attachToEnd (regex : ExtendedRegex) (attachee : ExtendedRegex) : ExtendedRegex =
+let rec attachToEnd (regex : Regex) (attachee : Regex) : Regex =
     match regex with
     | Seq(r1, Epsilon) -> Seq(r1, attachee)
     | Seq(r1, r2) -> Seq(r1, attachToEnd r2 attachee)
@@ -318,7 +317,7 @@ let rec attachToEnd (regex : ExtendedRegex) (attachee : ExtendedRegex) : Extende
     | _ -> Seq(regex, attachee)
 
 (* removes all Unions that can contain recursive nonterminals from an extended regular expression and returns a list of all the individual expressions *)
-let rec removeUnion (regex : ExtendedRegex) : ExtendedRegex list =
+let rec removeUnion (regex : Regex) : Regex list =
     match regex with
     | Union(r1, r2) ->
         let r1list = removeUnion r1
@@ -337,7 +336,7 @@ let rec removeUnion (regex : ExtendedRegex) : ExtendedRegex list =
     or are not allowed to contain recursive unions (ZeroOrMore, REComplement, Intersection) *)
     | _ -> [regex]
 
-let regexToNFA (grammar : Grammar) (regex : ExtendedRegex) (alphabet : Alphabet option) : NFA =
+let regexToNFA (grammar : Grammar) (regex : Regex) (alphabet : Alphabet option) : NFA =
     let layers = stratifyGrammar grammar
 
     let grammarUnionRemoved = 

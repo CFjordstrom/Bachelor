@@ -1,0 +1,6 @@
+ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz
+{
+#1 -> abs | div;
+#2 -> [a-zA-Z];
+}
+#1&!#2

@@ -21,9 +21,9 @@ let ppChars (content : ClassContent) : string =
     let split = splitIntoConsecutiveChars [] [] chars
     List.fold (fun acc (c1, c2) ->
         match int c2 - int c1 with
-        | 0 -> acc + ppChar c1
-        | 1 -> acc + ppChar c1 + ppChar c2
-        | _ -> acc + ppChar c1 + "-" + ppChar c2
+        | 0 -> ppChar c1 + acc
+        | 1 -> ppChar c1 + ppChar c2 + acc
+        | _ -> ppChar c1 + "-" + ppChar c2 + acc
     ) "" split
 
 let ppClass (c : Class) : string =
@@ -38,19 +38,19 @@ let ppClass (c : Class) : string =
         | 0 -> "."
         | _ -> "[^" + ppChars content + "]"
 
-let rec ppRegex' (regex : ExtendedRegex) : string =
+let rec ppRegex' (regex : Regex) : string =
     match regex with
     | Union(r, seq) -> ppRegex' r + "|" + ppSeq seq
     | Intersection(r, seq) -> ppRegex' r + "&" + ppSeq seq
     | s -> ppSeq s
 
-and ppSeq (seq : ExtendedRegex) : string =
+and ppSeq (seq : Regex) : string =
     match seq with
     | Epsilon -> ""
     | Seq(rep, seq) -> ppRep rep + ppSeq seq
     | _ -> ppRep seq
 
-and ppRep (rep : ExtendedRegex) : string =
+and ppRep (rep : Regex) : string =
     match rep with
     | ZeroOrMore atom -> ppAtom atom + "*"
     | Seq(atom1, Seq(ZeroOrMore(atom2), Epsilon)) when atom1 = atom2 -> ppAtom atom1 + "+"
@@ -58,13 +58,13 @@ and ppRep (rep : ExtendedRegex) : string =
     | REComplement atom -> "!" + ppAtom atom
     | atom -> ppAtom atom
 
-and ppAtom (atom : ExtendedRegex) : string  =
+and ppAtom (atom : Regex) : string  =
     match atom with
     | Class c -> ppClass c
     | Nonterminal s -> "#" + s
     | r -> "(" + ppRegex' r + ")"
 
-let ppRegex (regex : ExtendedRegex) : string =
+let ppRegex (regex : Regex) : string =
     match regex with
     | Epsilon ->
         "[]"
@@ -101,8 +101,8 @@ let ppNFA (nfa : NFA) : string =
         let transitionList =
             Map.fold (fun acc' toState symbols ->
                 match symbols with
-                | "" -> ("#" + string toState) :: acc'
-                | _ -> (symbols + " #" + string toState) :: acc'
+                | "" -> acc' @ [("#" + string toState)]
+                | _ -> acc' @ [(symbols + " #" + string toState)]
             ) [] toStateToSymbolsString
 
         (* concat with | as separator *)
@@ -141,8 +141,8 @@ let ppDFA (dfa : DFA<State>) : string =
         let transitionList =
             Map.fold (fun acc' toState symbols ->
                 match symbols with
-                | "" -> ("#" + string toState) :: acc'
-                | _ -> (symbols + " #" + string toState) :: acc'
+                | "" -> acc' @ [("#" + string toState)]
+                | _ -> acc' @ [(symbols + " #" + string toState)]
             ) [] toStateToSymbolsString
 
         (* concat with | as separator *)

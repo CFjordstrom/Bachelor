@@ -48,7 +48,7 @@ let nfaToGNFAMap (nfa : NFA) : GNFA =
     gnfa
 
 (* Assumes that regex1 and regex2 are right associated Seqs *)
-let rec makeSeq (regex1 : ExtendedRegex) (regex2 : ExtendedRegex) : ExtendedRegex =
+let rec makeSeq (regex1 : Regex) (regex2 : Regex) : Regex =
     match regex1, regex2 with
     | Epsilon, Epsilon -> Seq(Epsilon, Epsilon)
     | Epsilon, r -> r
@@ -62,7 +62,7 @@ let rec makeUnion (regex1 : Regex) (regex2 : Regex ) : Regex =
     match regex1, regex2 with
     | 
 *)
-let kleenesAlgorithm (gnfa : GNFA) : ExtendedRegex =
+let kleenesAlgorithm (gnfa : GNFA) : Regex =
     let len = Array2D.length1 gnfa
     (* for every state that needs to be removed *)
     Array2D.iteri (fun i j t -> 
@@ -101,7 +101,7 @@ let kleenesAlgorithm (gnfa : GNFA) : ExtendedRegex =
     | Some r -> r
     | None -> Epsilon
 
-let xfaToRegex (automaton : obj) : ExtendedRegex =
+let xfaToRegex (automaton : obj) : Regex =
     let input = 
         match automaton with
         | :? NFA as nfa -> nfa

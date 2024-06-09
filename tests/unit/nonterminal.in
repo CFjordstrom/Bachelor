@@ -1,0 +1,6 @@
+{
+#digit -> [0-9];
+#letter -> [a-z];
+#word -> #letter (#letter | #digit)*;
+}
+#word

@@ -44,6 +44,7 @@ let rec constructMinimalDFA (workList : WorkList) (dfa : DFA<State>) : DFA<State
         3.1 if consistent, go to step 1
         3.2 if not consistent -> split into maximal consistent subgroups
         3.3 replace group with new groups
+        3.4 remove ALL marks
     *)
     let (dfaStart, dfaMap, alphabet) = dfa
     (* 1. if all groups are marked or singleton then stop *)
@@ -138,7 +139,12 @@ let rec constructMinimalDFA (workList : WorkList) (dfa : DFA<State>) : DFA<State
                     Map.add (nextID()) (subgroup, false) acc
                 ) workListWithGroupRemoved maximalConsistentSubgroups
 
-            constructMinimalDFA newWorkList dfa
+            (* 3.4 remove all marks *)
+            let workListNoMarks =
+                Map.map (fun group (dfaStates, isMarked) ->
+                    (dfaStates, false)
+                ) newWorkList
+            constructMinimalDFA workListNoMarks dfa
 
 let minimiseDFA (dfa : DFA<State>) : DFA<State> =
     let (dfaStart, dfaMap, alphabet) = makeMoveTotal dfa
@@ -150,7 +156,7 @@ let minimiseDFA (dfa : DFA<State>) : DFA<State> =
             else
                 (accepting, Set.add state rejecting)
         ) (Set.empty, Set.empty) dfaMap
-    
+        
     let workList = Map.ofList ([nextID(), (accepting, false); nextID(), (rejecting, false)])
     let minimisedDFA = constructMinimalDFA workList (dfaStart, dfaMap, alphabet)
     (* convert minimised DFA to NFA so it can be re-numbered *)
