@@ -1,4 +1,4 @@
-# Conversion and combination of different representations of regular languages
+# Hybrid Syntax for Composition of Different Representation of Regular Languages
 
 Running the tool requires .NET 7.0 or later, and can be built by running
 $ make
